@@ -1,0 +1,9 @@
+{
+  "title": {
+    "translate": "info.reincarnation.group.life"
+  },
+  "order": 30,
+  "rows": [
+    "#reincarnation:life"
+  ]
+}

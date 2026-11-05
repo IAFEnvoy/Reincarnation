@@ -1,0 +1,11 @@
+{
+  "order": 5,
+  "importance": 70,
+  "label": {
+    "translate": "info.reincarnation.lifespan"
+  },
+  "value": {
+    "type": "reincarnation:lifespan"
+  },
+  "missing": "hide"
+}

@@ -1,0 +1,19 @@
+{
+  "order": 80,
+  "label": {
+    "translate": "info.reincarnation.total_experience"
+  },
+  "value": {
+    "type": "reincarnation:life",
+    "value": "total_experience"
+  },
+  "visible": {
+    "type": "saturn:is_known",
+    "value": {
+      "type": "saturn:getter",
+      "getter": {
+        "type": "reincarnation:life"
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "order": 100,
+  "label": {
+    "translate": "info.reincarnation.advancements"
+  },
+  "value": {
+    "type": "reincarnation:life",
+    "value": "advancements"
+  },
+  "visible": {
+    "type": "saturn:is_known",
+    "value": {
+      "type": "saturn:getter",
+      "getter": {
+        "type": "reincarnation:life"
+      }
+    }
+  }
+}

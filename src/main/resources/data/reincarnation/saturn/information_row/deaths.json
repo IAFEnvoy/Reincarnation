@@ -1,0 +1,19 @@
+{
+  "order": 110,
+  "label": {
+    "translate": "info.reincarnation.deaths"
+  },
+  "value": {
+    "type": "reincarnation:life",
+    "value": "deaths"
+  },
+  "visible": {
+    "type": "saturn:is_known",
+    "value": {
+      "type": "saturn:getter",
+      "getter": {
+        "type": "reincarnation:life"
+      }
+    }
+  }
+}

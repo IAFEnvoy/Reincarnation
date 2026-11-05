@@ -1,0 +1,21 @@
+{
+  "replace": false,
+  "values": [
+    "reincarnation:source",
+    "reincarnation:generation",
+    "reincarnation:lifespan",
+    "reincarnation:state",
+    "reincarnation:started",
+    "reincarnation:ended",
+    "reincarnation:observed",
+    "reincarnation:reason",
+    "reincarnation:level",
+    "reincarnation:total_experience",
+    "reincarnation:inventory_items",
+    "reincarnation:advancements",
+    "reincarnation:deaths",
+    "reincarnation:played_seconds",
+    "reincarnation:transaction",
+    "reincarnation:summary_position"
+  ]
+}

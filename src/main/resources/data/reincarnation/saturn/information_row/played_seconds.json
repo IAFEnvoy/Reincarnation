@@ -1,0 +1,19 @@
+{
+  "order": 120,
+  "label": {
+    "translate": "info.reincarnation.played_seconds"
+  },
+  "value": {
+    "type": "reincarnation:life",
+    "value": "played_seconds"
+  },
+  "visible": {
+    "type": "saturn:is_known",
+    "value": {
+      "type": "saturn:getter",
+      "getter": {
+        "type": "reincarnation:life"
+      }
+    }
+  }
+}

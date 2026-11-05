@@ -1,0 +1,70 @@
+html, body { overflow: hidden; }
+* { user-select: none; }
+.ore-theme.life-information {
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    background: none;
+    font-family: minecraft;
+    font-size: 8px;
+    line-height: 8px;
+}
+.ore-theme.life-information .panel {
+    position: absolute;
+    /* Keep the Java layout origin while retaining Ore's inset panel bevel. */
+    border-width: 0;
+}
+.text, .row-text, .row-marker {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    white-space: pre;
+}
+.row-text, .row-marker { pointer-events: none; }
+.title { font-size: 10px; line-height: 10px; }
+.caption { color: var(--ore-info); }
+.page-number { justify-content: center; }
+.ore-theme.life-information .list { position: absolute; border-width: 0; }
+.information-row {
+    position: absolute;
+}
+.ore-theme.life-information .information-row {
+    min-height: 0;
+    padding: 0;
+}
+.information-row.group { background-color: var(--ore-surface); }
+.row-label { color: var(--ore-ink-muted); }
+.information-row.group .row-label,
+.information-row.history .row-label { color: var(--ore-ink); }
+.row-value.value-positive { color: var(--green-30); }
+.row-value.value-warning { color: var(--ore-warning); }
+.row-marker {
+    color: var(--green-30);
+    justify-content: center;
+    transform-origin: center;
+}
+.ore-theme.life-information .information-row.active {
+    background-color: var(--ore-green);
+}
+.ore-theme.life-information .button {
+    position: absolute;
+    min-height: 0;
+    padding: 0;
+    border-width: 1px;
+    font-family: minecraft;
+    font-size: 8px;
+    line-height: 8px;
+    text-shadow: none;
+}
+.ore-theme.life-information .button:active { padding: 0; }
+.ore-theme.life-information .scroll-track,
+.ore-theme.life-information .scroll-thumb {
+    min-height: 0;
+    right: auto;
+    bottom: auto;
+    pointer-events: none;
+}
+.ore-theme.life-information .scroll-track { background-color: var(--scrollbar-track); }
