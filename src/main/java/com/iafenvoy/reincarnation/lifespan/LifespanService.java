@@ -1,7 +1,10 @@
 package com.iafenvoy.reincarnation.lifespan;
 
 import com.iafenvoy.reincarnation.Reincarnation;
-import com.iafenvoy.reincarnation.api.*;
+import com.iafenvoy.reincarnation.api.RebirthMode;
+import com.iafenvoy.reincarnation.api.ReincarnationApi;
+import com.iafenvoy.reincarnation.api.ReincarnationException;
+import com.iafenvoy.reincarnation.api.ReincarnationRequest;
 import com.iafenvoy.reincarnation.config.ReincarnationServerConfig;
 import com.iafenvoy.reincarnation.config.ReincarnationServerConfig.LifespanOutcome;
 import com.iafenvoy.reincarnation.config.ReincarnationServerConfig.PlayerDeathMode;
@@ -12,6 +15,7 @@ import com.iafenvoy.reincarnation.registry.ReincarnationAttachments;
 import com.iafenvoy.reincarnation.storage.Generations;
 import com.iafenvoy.saturn.runtime.resulting.Failures;
 import com.iafenvoy.saturn.runtime.resulting.Result;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -23,6 +27,7 @@ import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.GameType;
+import net.neoforged.bus.api.Event;
 import net.neoforged.neoforge.common.NeoForge;
 
 import java.util.*;
@@ -55,7 +60,8 @@ public final class LifespanService {
 
     private static boolean server(LivingEntity entity) {
         if (!(entity.level() instanceof ServerLevel level)) return false;
-        if (!level.getServer().isSameThread()) throw new IllegalStateException("Lifespan writes require the server thread");
+        if (!level.getServer().isSameThread())
+            throw new IllegalStateException("Lifespan writes require the server thread");
         return true;
     }
 
@@ -91,8 +97,9 @@ public final class LifespanService {
     }
 
     public static boolean settle(Entity entity) {
-        var settings = ReincarnationServerConfig.INSTANCE.lifespan;
-        if (!(entity instanceof LivingEntity living) || !server(living) || !settings.enabled.getValue() || !living.isAlive()) return false;
+        ReincarnationServerConfig.Lifespan settings = ReincarnationServerConfig.INSTANCE.lifespan;
+        if (!(entity instanceof LivingEntity living) || !server(living) || !settings.enabled.getValue() || !living.isAlive())
+            return false;
         if (entity instanceof ServerPlayer player && (player.isCreative() && !settings.ageCreative.getValue()
                 || player.isSpectator() && !settings.ageSpectator.getValue())) return false;
         if (PENDING.containsKey(entity.getUUID()) || EXPIRING.contains(entity.getUUID())) return false;
@@ -169,10 +176,12 @@ public final class LifespanService {
                 write(entity, base > 0 ? new Lifespan(base, base) : Lifespan.CLOSED);
             }
             notify(new LifeSpanRebirthEvent.Post(fresh, fresh.getData(ReincarnationAttachments.LIFESPAN), mode));
-            if (fresh instanceof ServerPlayer player) player.sendSystemMessage(Component.translatable("message.reincarnation.lifespan.reborn"));
+            if (fresh instanceof ServerPlayer player)
+                player.sendSystemMessage(Component.translatable("message.reincarnation.lifespan.reborn"));
             return Result.success(fresh);
         } catch (ReincarnationException failure) {
-            if (entity instanceof ServerPlayer player && ReincarnationService.get().pending(player.getUUID()).isPresent()) throw failure;
+            if (entity instanceof ServerPlayer player && ReincarnationService.get().pending(player.getUUID()).isPresent())
+                throw failure;
             return Result.failure(switch (failure.getMessage()) {
                 case "error.reincarnation.canceled" -> Failures.CANCELLED;
                 case "error.reincarnation.busy" -> Failures.ALREADY_ACTIVE;
@@ -209,7 +218,8 @@ public final class LifespanService {
             LivingEntity old = pending.entity;
             if (old.isRemoved() || !old.isAlive()) continue;
             if (old instanceof ServerPlayer player && (player.level().getServer().getPlayerList().getPlayer(player.getUUID()) != player
-                    || Generations.current(player.level().getServer(), player.getUUID()) != pending.generation)) continue;
+                    || Generations.current(player.level().getServer(), player.getUUID()) != pending.generation))
+                continue;
             if (pending.expiry && !value(old).expired()) continue;
             LifespanAttachment ledger = old.getData(ReincarnationAttachments.LIFESPAN);
             try {
@@ -236,7 +246,7 @@ public final class LifespanService {
         REBIRTHING.clear();
     }
 
-    private static void notify(net.neoforged.bus.api.Event event) {
+    private static void notify(Event event) {
         try {
             NeoForge.EVENT_BUS.post(event);
         } catch (RuntimeException failure) {
@@ -246,7 +256,7 @@ public final class LifespanService {
 
     public static void kill(LivingEntity entity) {
         if (!(entity.level() instanceof ServerLevel level) || !entity.isAlive()) return;
-        var type = level.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE).get(DAMAGE_TYPE);
+        Optional<Holder.Reference<DamageType>> type = level.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE).get(DAMAGE_TYPE);
         DamageSource source = type.map(DamageSource::new).orElseGet(() -> entity.damageSources().genericKill());
         entity.hurtServer(level, source, Float.MAX_VALUE);
     }
@@ -254,7 +264,8 @@ public final class LifespanService {
     public static void migrate(Entity entity) {
         LifespanAttachment legacy = entity.getExistingData(ReincarnationAttachments.LEGACY_LIFESPAN).orElse(null);
         if (legacy == null) return;
-        if (!entity.hasData(ReincarnationAttachments.LIFESPAN)) entity.setData(ReincarnationAttachments.LIFESPAN, new LifespanAttachment(legacy.value()));
+        if (!entity.hasData(ReincarnationAttachments.LIFESPAN))
+            entity.setData(ReincarnationAttachments.LIFESPAN, new LifespanAttachment(legacy.value()));
         entity.removeData(ReincarnationAttachments.LEGACY_LIFESPAN);
     }
 
@@ -274,7 +285,7 @@ public final class LifespanService {
         LifespanAttachment ledger = existing(player);
         if (ledger == null) return;
         Lifespan value = ledger.value();
-        var settings = ReincarnationServerConfig.INSTANCE.lifespan;
+        ReincarnationServerConfig.Lifespan settings = ReincarnationServerConfig.INSTANCE.lifespan;
         double fraction = settings.warningFraction.getValue();
         boolean low = settings.enabled.getValue() && value.finite() && value.total() > 0 && fraction > 0
                 && (double) value.remaining() / value.total() <= fraction;

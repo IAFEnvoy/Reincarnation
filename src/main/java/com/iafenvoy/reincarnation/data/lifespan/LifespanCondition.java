@@ -1,14 +1,17 @@
 package com.iafenvoy.reincarnation.data.lifespan;
 
 import com.iafenvoy.reincarnation.api.LifespanApi;
+import com.iafenvoy.reincarnation.lifespan.Lifespan;
 import com.iafenvoy.saturn.data.condition.EntityCondition;
 import com.iafenvoy.saturn.data.context.condition.EntityConditionContext;
 import com.iafenvoy.saturn.util.math.Comparison;
-import com.mojang.serialization.*;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.NotNull;
+
 import java.util.Locale;
 
 public record LifespanCondition(Field field, Comparison comparison) implements EntityCondition {
@@ -20,7 +23,7 @@ public record LifespanCondition(Field field, Comparison comparison) implements E
     @Override
     public boolean test(@NotNull EntityConditionContext context) {
         if (!(context.entity() instanceof LivingEntity)) return false;
-        var value = LifespanApi.get(context.entity());
+        Lifespan value = LifespanApi.get(context.entity());
         if (!value.finite()) return false;
         return this.comparison.compare(switch (this.field) {
             case REMAINING -> value.remaining();
@@ -38,6 +41,7 @@ public record LifespanCondition(Field field, Comparison comparison) implements E
     public enum Field implements StringRepresentable {
         REMAINING, TOTAL, FRACTION, SPENT;
         public static final Codec<Field> CODEC = StringRepresentable.fromEnum(Field::values);
+
         @Override
         public @NotNull String getSerializedName() {
             return this.name().toLowerCase(Locale.ROOT);

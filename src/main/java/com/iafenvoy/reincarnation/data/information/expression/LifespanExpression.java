@@ -1,14 +1,17 @@
 package com.iafenvoy.reincarnation.data.information.expression;
 
+import com.iafenvoy.reincarnation.config.ReincarnationServerConfig;
 import com.iafenvoy.reincarnation.data.information.getter.LifespanGetter;
 import com.iafenvoy.reincarnation.lifespan.Lifespan;
 import com.iafenvoy.reincarnation.lifespan.LifespanService;
-import com.iafenvoy.reincarnation.config.ReincarnationServerConfig;
-import com.iafenvoy.saturn.data.information.expression.*;
+import com.iafenvoy.saturn.data.information.expression.ExpressionValue;
+import com.iafenvoy.saturn.data.information.expression.InformationEvaluation;
+import com.iafenvoy.saturn.data.information.expression.InformationExpression;
 import com.iafenvoy.saturn.data.information.getter.EntityValueGetter;
 import com.iafenvoy.saturn.data.information.model.InformationValue;
 import com.iafenvoy.saturn.data.information.model.MissingReason;
 import com.mojang.serialization.MapCodec;
+
 import java.util.List;
 import java.util.Set;
 

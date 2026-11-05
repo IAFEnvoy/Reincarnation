@@ -14,8 +14,9 @@ import org.jspecify.annotations.NonNull;
 import java.util.Optional;
 import java.util.UUID;
 
-public record LifeViewRefreshS2CPayload(UUID requestId, UUID account, long generation, Optional<LifeViewOpenScreenData.Life> life,
-                                      Optional<InformationDocument> document) implements CustomPacketPayload {
+public record LifeViewRefreshS2CPayload(UUID requestId, UUID account, long generation,
+                                        Optional<LifeViewOpenScreenData.Life> life,
+                                        Optional<InformationDocument> document) implements CustomPacketPayload {
     public static final Type<LifeViewRefreshS2CPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath(Reincarnation.MOD_ID, "life_view_refresh_update"));
     public static final StreamCodec<RegistryFriendlyByteBuf, LifeViewRefreshS2CPayload> STREAM_CODEC = StreamCodec.composite(
                     UUIDUtil.STREAM_CODEC, LifeViewRefreshS2CPayload::requestId,

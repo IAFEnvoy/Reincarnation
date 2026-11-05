@@ -8,8 +8,10 @@ import com.iafenvoy.reincarnation.registry.ReincarnationAttachments;
 import com.iafenvoy.reincarnation.registry.tag.DamageTypeTags;
 import com.iafenvoy.reincarnation.storage.Generations;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerLoadedPacket;
@@ -63,7 +65,7 @@ final class DeathDamageTests {
     private static void filter(GameTestHelper h) {
         ReincarnationServerConfig config = ReincarnationServerConfig.INSTANCE;
         String original = config.serialize();
-        var registry = h.getLevel().registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE);
+        Registry<DamageType> registry = h.getLevel().registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE);
         Map<TagKey<DamageType>, List<Holder<DamageType>>> originalTags = new HashMap<>();
         registry.getTags().forEach(tag -> originalTags.put(tag.key(), tag.stream().toList()));
         ServerPlayer active = LifecycleTests.connect(h);
@@ -139,7 +141,7 @@ final class DeathDamageTests {
         try {
             ready(dead);
             damage(dead, LifespanService.DAMAGE_TYPE, Float.MAX_VALUE);
-            var data = ReincarnationService.playerData(dead);
+            CompoundTag data = ReincarnationService.playerData(dead);
             dead.removeData(ReincarnationAttachments.DEATH_DAMAGE_TYPE);
             dead.load(TagValueInput.create(ProblemReporter.DISCARDING, dead.registryAccess(), data));
             h.assertValueEqual(dead.getExistingData(ReincarnationAttachments.DEATH_DAMAGE_TYPE).orElseThrow(), LifespanService.DAMAGE_TYPE,

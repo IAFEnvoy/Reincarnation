@@ -2,11 +2,7 @@ package com.iafenvoy.reincarnation.gametest;
 
 import com.iafenvoy.reincarnation.Reincarnation;
 import com.iafenvoy.reincarnation.api.LifeReferences;
-import com.iafenvoy.reincarnation.reference.ReferenceCarrier;
-import com.iafenvoy.reincarnation.reference.ReferenceMetadataException;
-import com.iafenvoy.reincarnation.reference.ReferenceMetadata;
-import com.iafenvoy.reincarnation.reference.ReferencePersistence;
-import com.iafenvoy.reincarnation.reference.StampedTag;
+import com.iafenvoy.reincarnation.reference.*;
 import com.iafenvoy.reincarnation.storage.GenerationIndex;
 import com.iafenvoy.reincarnation.storage.Generations;
 import com.mojang.authlib.GameProfile;
@@ -172,7 +168,7 @@ public final class ReferenceTests {
         ReferenceMetadata metadata = ReferenceMetadata.CODEC.parse(NbtOps.INSTANCE,
                 encoded.getCompound(ReferencePersistence.CARRIER).orElseThrow().get(ReferencePersistence.METADATA)).getOrThrow();
         helper.assertValueEqual(ReferenceMetadata.CODEC.parse(JsonOps.INSTANCE,
-                ReferenceMetadata.CODEC.encodeStart(JsonOps.INSTANCE, metadata).getOrThrow()).getOrThrow(), metadata,
+                        ReferenceMetadata.CODEC.encodeStart(JsonOps.INSTANCE, metadata).getOrThrow()).getOrThrow(), metadata,
                 "the metadata schema supports ordinary Codec JSON round trips");
         CompoundTag raw = rawRoundTrip(encoded);
         CompoundTag rawBefore = raw.copy();

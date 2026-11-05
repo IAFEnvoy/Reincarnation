@@ -3,16 +3,19 @@ package com.iafenvoy.reincarnation.network;
 import com.iafenvoy.reincarnation.Reincarnation;
 import com.iafenvoy.reincarnation.data.information.LifeViewOpenScreenData;
 import com.iafenvoy.reincarnation.lifecycle.ReincarnationService;
+import com.iafenvoy.reincarnation.lifecycle.SoulRecord;
 import com.iafenvoy.reincarnation.network.payload.LifeViewRefreshC2SPayload;
 import com.iafenvoy.reincarnation.network.payload.LifeViewRefreshS2CPayload;
 import com.iafenvoy.reincarnation.storage.Generations;
 import com.iafenvoy.reincarnation.view.ReincarnationViews;
 import com.iafenvoy.saturn.data.information.PlayerInformation;
+import com.iafenvoy.saturn.data.information.PlayerViewSnapshot;
 import com.iafenvoy.saturn.data.information.model.InformationDocument;
 import io.netty.buffer.Unpooled;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -30,14 +33,14 @@ public final class ServerNetworkHandler {
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), viewer.registryAccess());
         try {
             if (viewer.getUUID().equals(request.account()) || Commands.<CommandSourceStack>hasPermission(Commands.LEVEL_GAMEMASTERS).test(viewer.createCommandSourceStack())) {
-                var server = viewer.level().getServer();
+                MinecraftServer server = viewer.level().getServer();
                 ReincarnationService service = ReincarnationService.get();
                 boolean current = Generations.current(server, request.account()) == request.generation();
                 ServerPlayer target = server.getPlayerList().getPlayer(request.account());
                 if (!current || target != null && service.canSave(target)) {
-                    var view = service.view(request.account(), request.generation());
+                    Optional<PlayerViewSnapshot> view = service.view(request.account(), request.generation());
                     if (view.isPresent()) {
-                        var record = view.get().read(ReincarnationViews.LIFE).value().orElseThrow();
+                        SoulRecord record = view.get().read(ReincarnationViews.LIFE).value().orElseThrow();
                         life = Optional.of(new LifeViewOpenScreenData.Life(record.generation(), record.endedAt(), record.reason()));
                         document = Optional.of(PlayerInformation.collectAll(view.get()));
                     }

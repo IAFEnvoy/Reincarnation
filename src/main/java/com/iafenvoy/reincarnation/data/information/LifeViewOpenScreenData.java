@@ -16,7 +16,8 @@ import java.util.List;
 import java.util.UUID;
 
 public record LifeViewOpenScreenData(UUID account, String name, long generation, List<Life> lives,
-                                     int page, int pages, boolean current, InformationDocument document) implements OpenScreenData {
+                                     int page, int pages, boolean current,
+                                     InformationDocument document) implements OpenScreenData {
     public static final int PAGE_SIZE = 32;
     public static final int MAX_BYTES = 1_000_000;
     private static final StreamCodec<RegistryFriendlyByteBuf, LifeViewOpenScreenData> CONTENT_CODEC = StreamCodec.composite(

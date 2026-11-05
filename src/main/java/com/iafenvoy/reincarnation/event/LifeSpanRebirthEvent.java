@@ -35,7 +35,9 @@ public abstract class LifeSpanRebirthEvent extends EntityEvent {
         }
     }
 
-    /** Apply addon state only for RESET; full player transitions use ReincarnationHandler instead. */
+    /**
+     * Apply addon state only for RESET; full player transitions use ReincarnationHandler instead.
+     */
     public static final class Reset extends LifeSpanRebirthEvent {
         public Reset(LivingEntity entity, LifespanAttachment ledger) {
             super(entity, ledger, RebirthMode.RESET);

@@ -766,7 +766,7 @@ final class LifecycleTests {
                     "expiry setting decodes Jupiter enum names");
             helper.assertValueEqual(config.lifespan.playerDeathMode.getValue(), ReincarnationServerConfig.PlayerDeathMode.SPECTATOR,
                     "player death setting decodes through Jupiter");
-            helper.assertValueEqual(config.lifespan.playerRebirthMode.getValue(), com.iafenvoy.reincarnation.api.RebirthMode.RESET,
+            helper.assertValueEqual(config.lifespan.playerRebirthMode.getValue(), RebirthMode.RESET,
                     "rebirth mode setting decodes through Jupiter");
             helper.assertTrue(config.serialize().contains("\"lifespan\""), "lifespan settings are serialized with the other categories");
             config.deserialize(original);

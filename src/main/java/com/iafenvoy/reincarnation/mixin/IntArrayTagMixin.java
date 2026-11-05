@@ -28,6 +28,6 @@ public abstract class IntArrayTagMixin implements StampedTag {
 
     @Inject(method = "copy()Lnet/minecraft/nbt/IntArrayTag;", at = @At("RETURN"))
     private void reincarnation$copy(CallbackInfoReturnable<IntArrayTag> cir) {
-        ReferencePersistence.copyTransient((IntArrayTag) (Object) this, cir.getReturnValue());
+        ReferencePersistence.copyTransient(this, cir.getReturnValue());
     }
 }

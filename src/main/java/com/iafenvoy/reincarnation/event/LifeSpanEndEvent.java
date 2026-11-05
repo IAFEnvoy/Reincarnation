@@ -18,14 +18,18 @@ public abstract class LifeSpanEndEvent extends EntityEvent {
         return this.ledger;
     }
 
-    /** Cancel and grant positive remaining life to resume ageing; cancel alone closes the ledger. */
+    /**
+     * Cancel and grant positive remaining life to resume ageing; cancel alone closes the ledger.
+     */
     public static final class Pre extends LifeSpanEndEvent implements ICancellableEvent {
         public Pre(Entity entity, LifespanAttachment ledger) {
             super(entity, ledger);
         }
     }
 
-    /** The entity and ledger belong to the expired life, even if a replacement player now exists. */
+    /**
+     * The entity and ledger belong to the expired life, even if a replacement player now exists.
+     */
     public static final class Post extends LifeSpanEndEvent {
         private final LifespanOutcome outcome;
 

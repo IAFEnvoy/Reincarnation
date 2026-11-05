@@ -3,6 +3,7 @@ package com.iafenvoy.reincarnation.registry;
 import com.iafenvoy.reincarnation.Reincarnation;
 import com.iafenvoy.reincarnation.data.information.getter.LifeGetter;
 import com.iafenvoy.reincarnation.data.information.getter.LifeSourceGetter;
+import com.iafenvoy.reincarnation.data.information.getter.LifespanGetter;
 import com.iafenvoy.saturn.data.information.getter.EntityValueGetter;
 import com.iafenvoy.saturn.registry.SaturnRegistries;
 import com.mojang.serialization.MapCodec;
@@ -15,7 +16,7 @@ public final class ReincarnationEntityValueGetters {
     static {
         REGISTRY.register("life", () -> LifeGetter.CODEC);
         REGISTRY.register("life_source", () -> LifeSourceGetter.CODEC);
-        REGISTRY.register("lifespan", () -> com.iafenvoy.reincarnation.data.information.getter.LifespanGetter.CODEC);
+        REGISTRY.register("lifespan", () -> LifespanGetter.CODEC);
     }
 
     private ReincarnationEntityValueGetters() {

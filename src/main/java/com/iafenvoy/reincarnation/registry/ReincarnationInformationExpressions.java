@@ -2,6 +2,7 @@ package com.iafenvoy.reincarnation.registry;
 
 import com.iafenvoy.reincarnation.Reincarnation;
 import com.iafenvoy.reincarnation.data.information.expression.LifeExpression;
+import com.iafenvoy.reincarnation.data.information.expression.LifespanExpression;
 import com.iafenvoy.saturn.data.information.expression.InformationExpression;
 import com.iafenvoy.saturn.registry.SaturnRegistries;
 import com.mojang.serialization.MapCodec;
@@ -13,7 +14,7 @@ public final class ReincarnationInformationExpressions {
 
     static {
         REGISTRY.register("life", () -> LifeExpression.CODEC);
-        REGISTRY.register("lifespan", () -> com.iafenvoy.reincarnation.data.information.expression.LifespanExpression.CODEC);
+        REGISTRY.register("lifespan", () -> LifespanExpression.CODEC);
     }
 
     private ReincarnationInformationExpressions() {

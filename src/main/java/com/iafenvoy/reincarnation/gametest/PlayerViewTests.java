@@ -1,10 +1,6 @@
 package com.iafenvoy.reincarnation.gametest;
 
-import com.iafenvoy.reincarnation.api.LifeNumbers;
-import com.iafenvoy.reincarnation.api.LifespanApi;
-import com.iafenvoy.reincarnation.api.ReincarnationException;
-import com.iafenvoy.reincarnation.api.ReincarnationRequest;
-import com.iafenvoy.reincarnation.api.ResetPolicy;
+import com.iafenvoy.reincarnation.api.*;
 import com.iafenvoy.reincarnation.command.ReincarnationCommand;
 import com.iafenvoy.reincarnation.config.ReincarnationServerConfig;
 import com.iafenvoy.reincarnation.data.information.LifeViewOpenScreenData;
@@ -43,6 +39,7 @@ import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.LevelBasedPermissionSet;
 import net.minecraft.server.permissions.PermissionSet;
@@ -308,7 +305,7 @@ final class PlayerViewTests {
     private static void refresh(GameTestHelper helper) {
         ServerPlayer player = LifecycleTests.connect(helper);
         ServerPlayer target = LifecycleTests.connect(helper);
-        var server = helper.getLevel().getServer();
+        MinecraftServer server = helper.getLevel().getServer();
         ReincarnationService service = ReincarnationService.get();
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), player.registryAccess());
         try {
@@ -392,7 +389,9 @@ final class PlayerViewTests {
     private static LifeViewRefreshS2CPayload receiveRefresh(GameTestHelper helper, EmbeddedChannel channel) {
         Object packet;
         while ((packet = channel.readOutbound()) != null)
-            if (packet instanceof ClientboundCustomPayloadPacket(CustomPacketPayload payload) && payload instanceof LifeViewRefreshS2CPayload response)
+            if (packet instanceof ClientboundCustomPayloadPacket(
+                    CustomPacketPayload payload
+            ) && payload instanceof LifeViewRefreshS2CPayload response)
                 return response;
         helper.fail("the registered refresh payload was not sent");
         throw new AssertionError();

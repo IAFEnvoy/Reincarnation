@@ -5,18 +5,23 @@ import com.iafenvoy.saturn.data.action.EntityAction;
 import com.iafenvoy.saturn.data.context.action.EntityActionContext;
 import com.iafenvoy.saturn.util.formula.NumberProvider;
 import com.iafenvoy.saturn.util.formula.number.Constant;
-import com.mojang.serialization.*;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.NotNull;
+
 import java.util.Locale;
 
 public record ModifyLifespanAction(Mode mode, NumberProvider amount) implements EntityAction {
     public static final MapCodec<ModifyLifespanAction> CODEC = RecordCodecBuilder.<ModifyLifespanAction>mapCodec(i -> i.group(
             Mode.CODEC.optionalFieldOf("mode", Mode.ADD).forGetter(ModifyLifespanAction::mode),
             NumberProvider.CODEC.fieldOf("amount").forGetter(ModifyLifespanAction::amount)
-    ).apply(i, ModifyLifespanAction::new)).validate(action -> action.mode == Mode.SET && action.amount instanceof Constant(double value) && value < 0
+    ).apply(i, ModifyLifespanAction::new)).validate(action -> action.mode == Mode.SET && action.amount instanceof Constant(
+            double value
+    ) && value < 0
             ? DataResult.error(() -> "Setting lifespan requires a non-negative amount") : DataResult.success(action));
 
     @Override
@@ -36,6 +41,7 @@ public record ModifyLifespanAction(Mode mode, NumberProvider amount) implements 
     public enum Mode implements StringRepresentable {
         ADD, SET;
         public static final Codec<Mode> CODEC = StringRepresentable.fromEnum(Mode::values);
+
         @Override
         public @NotNull String getSerializedName() {
             return this.name().toLowerCase(Locale.ROOT);

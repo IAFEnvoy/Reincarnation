@@ -1,23 +1,34 @@
 package com.iafenvoy.reincarnation.gametest;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
-import com.iafenvoy.reincarnation.api.*;
+import com.iafenvoy.reincarnation.api.LifespanApi;
+import com.iafenvoy.reincarnation.api.RebirthMode;
+import com.iafenvoy.reincarnation.api.ReincarnationApi;
+import com.iafenvoy.reincarnation.api.ReincarnationRequest;
 import com.iafenvoy.reincarnation.config.ReincarnationServerConfig;
 import com.iafenvoy.reincarnation.config.ReincarnationServerConfig.LifespanOutcome;
 import com.iafenvoy.reincarnation.config.ReincarnationServerConfig.PlayerDeathMode;
 import com.iafenvoy.reincarnation.data.information.getter.LifespanGetter;
-import com.iafenvoy.reincarnation.event.*;
-import com.iafenvoy.reincarnation.lifespan.*;
+import com.iafenvoy.reincarnation.event.LifeSpanEndEvent;
+import com.iafenvoy.reincarnation.event.ReincarnationEvent;
 import com.iafenvoy.reincarnation.lifecycle.ReincarnationService;
+import com.iafenvoy.reincarnation.lifespan.Lifespan;
+import com.iafenvoy.reincarnation.lifespan.LifespanAttachment;
+import com.iafenvoy.reincarnation.lifespan.LifespanEvents;
+import com.iafenvoy.reincarnation.lifespan.LifespanService;
 import com.iafenvoy.reincarnation.registry.ReincarnationAttachments;
 import com.iafenvoy.reincarnation.storage.Generations;
 import com.iafenvoy.saturn.data.action.EntityAction;
 import com.iafenvoy.saturn.data.condition.EntityCondition;
+import com.iafenvoy.saturn.data.information.PlayerViewSnapshot;
 import com.iafenvoy.saturn.util.formula.FormulaContext;
+import com.mojang.authlib.GameProfile;
 import com.mojang.serialization.JsonOps;
 import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
@@ -25,13 +36,22 @@ import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerLoadedPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
-import net.minecraft.world.entity.*;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 public final class LifespanTests {
@@ -51,10 +71,11 @@ public final class LifespanTests {
     }
 
     private record Settings(boolean enabled, long base, int age, LifespanOutcome outcome, PlayerDeathMode death,
-                            RebirthMode rebirth, boolean creative, boolean spectator, boolean autoDeath, double warning) implements AutoCloseable {
+                            RebirthMode rebirth, boolean creative, boolean spectator, boolean autoDeath,
+                            double warning) implements AutoCloseable {
         static Settings setup() {
-            var c = ReincarnationServerConfig.INSTANCE.lifespan;
-            var old = new Settings(c.enabled.getValue(), c.baseLifespan.getValue(), c.agePerSettle.getValue(), c.onExpire.getValue(),
+            ReincarnationServerConfig.Lifespan c = ReincarnationServerConfig.INSTANCE.lifespan;
+            Settings old = new Settings(c.enabled.getValue(), c.baseLifespan.getValue(), c.agePerSettle.getValue(), c.onExpire.getValue(),
                     c.playerDeathMode.getValue(), c.playerRebirthMode.getValue(), c.ageCreative.getValue(), c.ageSpectator.getValue(),
                     ReincarnationServerConfig.INSTANCE.lifecycle.autoReincarnateOnDeath.getValue(), c.warningFraction.getValue());
             c.enabled.setValue(true);
@@ -73,7 +94,7 @@ public final class LifespanTests {
 
         @Override
         public void close() {
-            var c = ReincarnationServerConfig.INSTANCE.lifespan;
+            ReincarnationServerConfig.Lifespan c = ReincarnationServerConfig.INSTANCE.lifespan;
             c.enabled.setValue(this.enabled);
             c.baseLifespan.setValue(this.base);
             c.agePerSettle.setValue(this.age);
@@ -98,7 +119,7 @@ public final class LifespanTests {
     }
 
     private static void ledger(GameTestHelper h) {
-        try (var ignored = Settings.setup()) {
+        try (Settings ignored = Settings.setup()) {
             Pig pig = pig(h);
             try {
                 LifespanApi.add(pig, 0);
@@ -112,11 +133,11 @@ public final class LifespanTests {
                 h.assertValueEqual(LifespanApi.get(pig), new Lifespan(120, 150), "loss spends only remaining life");
                 h.assertTrue(LifespanApi.set(pig, -1).getFailure().isPresent(), "negative set is rejected");
                 LifespanService.settle(pig);
-                var aged = LifespanApi.get(pig);
+                Lifespan aged = LifespanApi.get(pig);
                 h.assertValueEqual(LifespanService.display(aged.remaining(), aged.total(), 10),
                         Component.translatable("info.reincarnation.lifespan.value", "5.0", "15.0"), "age increases as time passes");
                 LifespanApi.add(pig, 50);
-                var extended = LifespanApi.get(pig);
+                Lifespan extended = LifespanApi.get(pig);
                 h.assertValueEqual(LifespanService.display(extended.remaining(), extended.total(), 10),
                         Component.translatable("info.reincarnation.lifespan.value", "5.0", "20.0"), "extending lifespan raises the limit without changing age");
                 h.assertValueEqual(LifespanService.display(-1, 0, 10), Component.translatable("info.reincarnation.lifespan.unlimited"),
@@ -141,21 +162,38 @@ public final class LifespanTests {
     }
 
     private static void expiry(GameTestHelper h) {
-        try (var ignored = Settings.setup()) {
+        try (Settings ignored = Settings.setup()) {
             Pig pig = pig(h);
-            Consumer<LifeSpanEndEvent.Pre> cancel = e -> { if (e.getEntity() == pig) e.setCanceled(true); };
-            Consumer<LifeSpanEndEvent.Pre> renew = e -> { if (e.getEntity() == pig) { e.setCanceled(true); LifespanApi.add(pig, 50); } };
+            Consumer<LifeSpanEndEvent.Pre> cancel = e -> {
+                if (e.getEntity() == pig) e.setCanceled(true);
+            };
+            Consumer<LifeSpanEndEvent.Pre> renew = e -> {
+                if (e.getEntity() == pig) {
+                    e.setCanceled(true);
+                    LifespanApi.add(pig, 50);
+                }
+            };
             List<Lifespan> ended = new ArrayList<>();
-            Consumer<LifeSpanEndEvent.Post> observe = e -> { if (e.getEntity() == pig) ended.add(e.getSpirit().value()); };
+            Consumer<LifeSpanEndEvent.Post> observe = e -> {
+                if (e.getEntity() == pig) ended.add(e.getSpirit().value());
+            };
             NeoForge.EVENT_BUS.addListener(observe);
             try {
                 LifespanApi.set(pig, 5);
                 NeoForge.EVENT_BUS.addListener(cancel);
-                try { LifespanService.settle(pig); } finally { NeoForge.EVENT_BUS.unregister(cancel); }
+                try {
+                    LifespanService.settle(pig);
+                } finally {
+                    NeoForge.EVENT_BUS.unregister(cancel);
+                }
                 h.assertValueEqual(LifespanApi.get(pig), Lifespan.CLOSED, "cancel without renewal closes the ledger");
                 LifespanApi.set(pig, 5);
                 NeoForge.EVENT_BUS.addListener(renew);
-                try { LifespanService.settle(pig); } finally { NeoForge.EVENT_BUS.unregister(renew); }
+                try {
+                    LifespanService.settle(pig);
+                } finally {
+                    NeoForge.EVENT_BUS.unregister(renew);
+                }
                 h.assertValueEqual(LifespanService.remaining(pig), 50L, "renewal inside expiry event resumes ageing");
                 LifespanApi.set(pig, 5);
                 LifespanService.settle(pig);
@@ -168,7 +206,7 @@ public final class LifespanTests {
                         "end notifications retain expired numbers after closing or replacing the ledger");
                 ReincarnationServerConfig.INSTANCE.lifespan.onExpire.setValue(LifespanOutcome.DEATH);
                 pig.setInvulnerable(true);
-                pig.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.RESISTANCE, 200, 4));
+                pig.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 200, 4));
                 LifespanApi.set(pig, 1);
                 LifespanService.settle(pig);
                 h.assertTrue(!pig.isAlive(), "lifespan damage kills a mob");
@@ -190,7 +228,7 @@ public final class LifespanTests {
     }
 
     private static void datapack(GameTestHelper h) {
-        try (var ignored = Settings.setup()) {
+        try (Settings ignored = Settings.setup()) {
             Pig pig = pig(h);
             try {
                 action("{\"type\":\"reincarnation:modify_lifespan\",\"mode\":\"set\",\"amount\":80}").execute(pig, FormulaContext.of(pig));
@@ -206,12 +244,14 @@ public final class LifespanTests {
                 h.assertValueEqual(LifespanApi.get(pig), new Lifespan(100, 100), "queued action reopens ledger");
                 h.assertTrue(EntityAction.SINGLE_CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("{\"type\":\"reincarnation:modify_lifespan\",\"mode\":\"set\",\"amount\":-3}")).error().isPresent(), "invalid constant set rejected during decoding");
                 h.succeed();
-            } finally { pig.discard(); }
+            } finally {
+                pig.discard();
+            }
         }
     }
 
     private static void playerModes(GameTestHelper h) {
-        try (var ignored = Settings.setup()) {
+        try (Settings ignored = Settings.setup()) {
             ServerPlayer player = LifecycleTests.connect(h);
             try {
                 player.setGameMode(GameType.CREATIVE);
@@ -230,19 +270,20 @@ public final class LifespanTests {
                 LifespanApi.set(player, 10);
                 LifespanService.settle(player);
                 h.assertTrue(player.isDeadOrDying(), "kill mode performs real player death");
-                ServerPlayer fresh = h.getLevel().getServer().getPlayerList().respawn(player, false, Entity.RemovalReason.KILLED);
-                player = fresh;
+                player = h.getLevel().getServer().getPlayerList().respawn(player, false, Entity.RemovalReason.KILLED);
                 h.assertValueEqual(LifespanService.remaining(player), 0L, "ordinary respawn copies lifespan");
                 h.succeed();
-            } finally { LifecycleTests.remove(player.connection.player); }
+            } finally {
+                LifecycleTests.remove(player.connection.player);
+            }
         }
     }
 
     private static void warning(GameTestHelper h) {
-        try (var ignored = Settings.setup()) {
+        try (Settings ignored = Settings.setup()) {
             ServerPlayer player = LifecycleTests.connect(h);
             try {
-                var settings = ReincarnationServerConfig.INSTANCE.lifespan;
+                ReincarnationServerConfig.Lifespan settings = ReincarnationServerConfig.INSTANCE.lifespan;
                 player.setGameMode(GameType.SURVIVAL);
                 LifespanApi.set(player, 100);
                 settings.agePerSettle.setValue(10);
@@ -277,7 +318,7 @@ public final class LifespanTests {
                 h.assertTrue(warnings(player).isEmpty(), "rounding does not warn above the configured fraction");
                 LifespanApi.add(player, -1);
                 h.assertValueEqual(warnings(player).size(), 1, "fractional thresholds warn only once the ratio is low enough");
-                var saved = LifespanAttachment.CODEC.codec().encodeStart(JsonOps.INSTANCE, player.getData(ReincarnationAttachments.LIFESPAN)).getOrThrow();
+                JsonElement saved = LifespanAttachment.CODEC.codec().encodeStart(JsonOps.INSTANCE, player.getData(ReincarnationAttachments.LIFESPAN)).getOrThrow();
                 player.setData(ReincarnationAttachments.LIFESPAN, LifespanAttachment.CODEC.codec().parse(JsonOps.INSTANCE, saved).getOrThrow());
                 LifespanEvents.login(new PlayerEvent.PlayerLoggedInEvent(player));
                 h.assertValueEqual(warnings(player).size(), 1, "loading an already-low ledger warns on login");
@@ -291,7 +332,9 @@ public final class LifespanTests {
                 LifespanApi.set(player, 0);
                 h.assertTrue(warnings(player).isEmpty(), "unlimited and zero-total ledgers never warn");
                 h.succeed();
-            } finally { LifecycleTests.remove(player.connection.player); }
+            } finally {
+                LifecycleTests.remove(player.connection.player);
+            }
         }
     }
 
@@ -317,7 +360,7 @@ public final class LifespanTests {
             h.assertTrue(dead.isDeadOrDying(), "lifespan exhaustion triggers real death");
             h.assertValueEqual(dead.getExistingData(ReincarnationAttachments.DEATH_REASON).orElseThrow(),
                     Component.translatable("reason.reincarnation.lifespan"), "the lethal lifespan damage records a translatable reason");
-            var saved = ReincarnationService.playerData(dead);
+            CompoundTag saved = ReincarnationService.playerData(dead);
             dead.removeData(ReincarnationAttachments.DEATH_REASON);
             dead.load(TagValueInput.create(ProblemReporter.DISCARDING, dead.registryAccess(), saved));
             h.assertValueEqual(dead.getExistingData(ReincarnationAttachments.DEATH_REASON).orElseThrow(),
@@ -353,7 +396,7 @@ public final class LifespanTests {
     }
 
     private static void newLife(GameTestHelper h) {
-        try (var ignored = Settings.setup()) {
+        try (Settings ignored = Settings.setup()) {
             ServerPlayer old = LifecycleTests.connect(h);
             try {
                 old.setGameMode(GameType.SURVIVAL);
@@ -367,14 +410,14 @@ public final class LifespanTests {
                 h.assertTrue(fresh != old, "complete rebirth replaces the player");
                 h.assertValueEqual(Generations.current(h.getLevel().getServer(), old.getUUID()), 1L, "one expiry advances one generation");
                 h.assertValueEqual(LifespanApi.get(fresh), new Lifespan(100, 100), "new life starts with configured baseline");
-                var past = ReincarnationApi.view(old.getUUID(), 0).orElseThrow();
+                PlayerViewSnapshot past = ReincarnationApi.view(old.getUUID(), 0).orElseThrow();
                 h.assertValueEqual(ReincarnationService.get().store().history(old.getUUID(), 0).orElseThrow().reason(),
                         Component.translatable("reason.reincarnation.lifespan"), "direct lifespan reincarnation uses the same exhaustion reason");
                 h.assertValueEqual(past.read(LifespanGetter.INSTANCE).value().orElseThrow(), new Lifespan(0, 5), "old life retains exhausted ledger");
-                var oldLifespan = past.read(LifespanGetter.INSTANCE).value().orElseThrow();
+                Lifespan oldLifespan = past.read(LifespanGetter.INSTANCE).value().orElseThrow();
                 h.assertValueEqual(LifespanService.display(oldLifespan.remaining(), oldLifespan.total(), 1),
                         Component.translatable("info.reincarnation.lifespan.ticks", 5L, 5L), "an expired past life displays its reached age");
-                var freshLifespan = LifespanApi.get(fresh);
+                Lifespan freshLifespan = LifespanApi.get(fresh);
                 h.assertValueEqual(LifespanService.display(freshLifespan.remaining(), freshLifespan.total(), 1),
                         Component.translatable("info.reincarnation.lifespan.ticks", 0L, 100L), "rebirth starts the displayed age at zero");
                 h.assertTrue(condition("{\"type\":\"reincarnation:generation\",\"comparison\":\"==\",\"compare_to\":2}", fresh), "generation condition uses visible one-based life number");
@@ -392,7 +435,9 @@ public final class LifespanTests {
                 try {
                     h.assertTrue(LifespanApi.rebirth(fresh, RebirthMode.NEW_LIFE, Component.literal("cancel")).getFailure().isPresent(),
                             "full transition cancellation returns an API failure");
-                } finally { NeoForge.EVENT_BUS.unregister(veto); }
+                } finally {
+                    NeoForge.EVENT_BUS.unregister(veto);
+                }
                 h.assertValueEqual(Generations.current(h.getLevel().getServer(), fresh.getUUID()), 1L, "cancelled transition does not advance generation");
                 LifespanApi.requestRebirth(fresh, RebirthMode.NEW_LIFE, Component.literal("stale"));
                 ServerPlayer changed = ReincarnationApi.reincarnate(fresh, ReincarnationRequest.atSpawn(fresh, Component.literal("manual")));
@@ -400,12 +445,14 @@ public final class LifespanTests {
                 h.assertTrue(changed.connection.player == changed, "stale queued request cannot replace an already reborn player");
                 h.assertValueEqual(Generations.current(h.getLevel().getServer(), changed.getUUID()), 2L, "stale request does not advance generation twice");
                 h.succeed();
-            } finally { LifecycleTests.remove(old.connection.player); }
+            } finally {
+                LifecycleTests.remove(old.connection.player);
+            }
         }
     }
 
     private static void legacy(GameTestHelper h) {
-        try (var ignored = Settings.setup()) {
+        try (Settings ignored = Settings.setup()) {
             Pig pig = pig(h);
             try {
                 pig.setData(ReincarnationAttachments.LEGACY_LIFESPAN, new LifespanAttachment(new Lifespan(31, 80)));
@@ -414,19 +461,22 @@ public final class LifespanTests {
                 LifespanService.migrate(pig);
                 h.assertValueEqual(LifespanApi.get(pig), new Lifespan(31, 80), "migration preserves both values");
                 h.assertTrue(!pig.hasData(ReincarnationAttachments.LEGACY_LIFESPAN), "legacy attachment removed after migration");
-                var tag = LifespanAttachment.CODEC.codec().encodeStart(JsonOps.INSTANCE, pig.getData(ReincarnationAttachments.LIFESPAN)).getOrThrow();
+                JsonElement tag = LifespanAttachment.CODEC.codec().encodeStart(JsonOps.INSTANCE, pig.getData(ReincarnationAttachments.LIFESPAN)).getOrThrow();
                 h.assertValueEqual(LifespanAttachment.CODEC.codec().parse(JsonOps.INSTANCE, tag).getOrThrow().value(), new Lifespan(31, 80), "attachment codec roundtrip");
                 h.succeed();
-            } finally { pig.discard(); }
+            } finally {
+                pig.discard();
+            }
         }
     }
 
     private static void recovery(GameTestHelper h) {
-        try (var ignored = Settings.setup()) {
+        try (Settings ignored = Settings.setup()) {
             ServerPlayer old = LifecycleTests.connect(h);
-            var profile = old.getGameProfile();
+            GameProfile profile = old.getGameProfile();
             Consumer<ReincarnationEvent.Reset> fail = event -> {
-                if (event.player().getUUID().equals(profile.id())) throw new IllegalStateException("Intentional lifespan recovery test");
+                if (event.player().getUUID().equals(profile.id()))
+                    throw new IllegalStateException("Intentional lifespan recovery test");
             };
             NeoForge.EVENT_BUS.addListener(fail);
             try {
@@ -436,7 +486,9 @@ public final class LifespanTests {
                 } catch (IllegalStateException expected) {
                     h.assertTrue(ReincarnationService.get().pending(old.getUUID()).isPresent(), "transaction remains recoverable");
                 }
-            } finally { NeoForge.EVENT_BUS.unregister(fail); }
+            } finally {
+                NeoForge.EVENT_BUS.unregister(fail);
+            }
             ServerPlayer partial = h.getLevel().getServer().getPlayerList().getPlayer(old.getUUID());
             if (partial != null) LifecycleTests.remove(partial);
             ReincarnationServerConfig.INSTANCE.lifespan.baseLifespan.setValue(900L);
@@ -447,7 +499,9 @@ public final class LifespanTests {
                 h.assertTrue(ReincarnationService.get().pending(fresh.getUUID()).isEmpty(), "login completes interrupted transition");
                 h.assertValueEqual(LifespanApi.get(fresh), new Lifespan(100, 100), "recovery uses archived baseline rather than changed config");
                 h.succeed();
-            } finally { LifecycleTests.remove(fresh); }
+            } finally {
+                LifecycleTests.remove(fresh);
+            }
         }
     }
 }

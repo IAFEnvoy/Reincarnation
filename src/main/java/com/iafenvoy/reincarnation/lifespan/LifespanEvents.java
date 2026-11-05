@@ -7,8 +7,9 @@ import com.iafenvoy.reincarnation.config.ReincarnationServerConfig;
 import com.iafenvoy.reincarnation.event.RegisterReincarnationHandlersEvent;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -24,8 +25,8 @@ public final class LifespanEvents {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void tick(EntityTickEvent.Post event) {
-        var entity = event.getEntity();
-        var settings = ReincarnationServerConfig.INSTANCE.lifespan;
+        Entity entity = event.getEntity();
+        ReincarnationServerConfig.Lifespan settings = ReincarnationServerConfig.INSTANCE.lifespan;
         if (!entity.level().isClientSide() && settings.enabled.getValue()
                 && entity.level().getGameTime() % settings.settleInterval.getValue() == 0)
             LifespanService.settle(entity);
@@ -64,7 +65,7 @@ public final class LifespanEvents {
 
             @Override
             public CompoundTag archive(ServerPlayer player) {
-                var settings = ReincarnationServerConfig.INSTANCE.lifespan;
+                ReincarnationServerConfig.Lifespan settings = ReincarnationServerConfig.INSTANCE.lifespan;
                 long base = settings.baseLifespan.getValue();
                 Lifespan initial = !settings.enabled.getValue() ? Lifespan.UNACCOUNTED
                         : base > 0 ? new Lifespan(base, base) : Lifespan.CLOSED;

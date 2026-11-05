@@ -2,17 +2,17 @@ package com.iafenvoy.reincarnation.reference;
 
 import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.Dynamic;
-import com.mojang.serialization.DynamicOps;
+import com.mojang.serialization.*;
 import net.minecraft.core.UUIDUtil;
 
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
+import java.util.stream.Stream;
 
-/** Complete-payload persistence. Codecs own the schema; DynamicOps handles structural navigation. */
+/**
+ * Complete-payload persistence. Codecs own the schema; DynamicOps handles structural navigation.
+ */
 public final class ReferencePersistence {
     public static final String CARRIER = "NeoForgeData";
     public static final String METADATA = "reincarnation:reference_metadata";
@@ -22,7 +22,9 @@ public final class ReferencePersistence {
     private ReferencePersistence() {
     }
 
-    /** Compose complete object codecs while retaining the caller's prefix and existing extension fields. */
+    /**
+     * Compose complete object codecs while retaining the caller's prefix and existing extension fields.
+     */
     public static <A> Codec<A> wrap(Codec<A> codec) {
         return new Codec<>() {
             @Override
@@ -40,7 +42,9 @@ public final class ReferencePersistence {
         };
     }
 
-    /** Validate every table before assigning any transient stamps. Serialized input is never edited. */
+    /**
+     * Validate every table before assigning any transient stamps. Serialized input is never edited.
+     */
     public static <T> T restore(DynamicOps<T> ops, T tree) {
         Map<T, ReferenceMetadata> tables = new IdentityHashMap<>();
         Map<StampedTag, ReferenceStamp> pending = new IdentityHashMap<>();
@@ -65,7 +69,9 @@ public final class ReferencePersistence {
         }, 0);
     }
 
-    /** Only complete, extensible objects may own a reference table. */
+    /**
+     * Only complete, extensible objects may own a reference table.
+     */
     public static <T> T pack(DynamicOps<T> ops, T tree) {
         T restored = restore(ops, tree);
         ops.getMap(restored).getOrThrow(ReferenceMetadataException::new);
@@ -73,7 +79,9 @@ public final class ReferencePersistence {
         return rebuild(ops, restored);
     }
 
-    /** Rebuild paths at the final write boundary without changing the supplied payload. */
+    /**
+     * Rebuild paths at the final write boundary without changing the supplied payload.
+     */
     public static <T> T snapshotForWrite(DynamicOps<T> ops, T tree) {
         boolean[] needed = {false};
         walk(ops, tree, new ArrayList<>(), false, (node, _) -> {
@@ -183,7 +191,7 @@ public final class ReferencePersistence {
                                  BiPredicate<T, List<Either<String, Integer>>> visitor, int depth) {
         checkDepth(depth);
         if (!visitor.test(tree, path) || tree instanceof StampedTag) return;
-        var map = ops.getMap(tree).result();
+        Optional<MapLike<T>> map = ops.getMap(tree).result();
         if (map.isPresent()) {
             for (Pair<T, T> entry : map.get().entries().toList()) {
                 String key = ops.getStringValue(entry.getFirst()).getOrThrow(ReferenceMetadataException::new);
@@ -193,7 +201,7 @@ public final class ReferencePersistence {
                 path.removeLast();
             }
         } else {
-            var list = ops.getStream(tree).result();
+            Optional<Stream<T>> list = ops.getStream(tree).result();
             if (list.isEmpty()) return;
             int index = 0;
             for (T child : list.get().toList()) {
@@ -207,7 +215,7 @@ public final class ReferencePersistence {
     private static <T> T transform(DynamicOps<T> ops, T tree, boolean extension, BiFunction<T, T, T> action, int depth) {
         checkDepth(depth);
         T result = tree;
-        var map = ops.getMap(tree).result();
+        Optional<MapLike<T>> map = ops.getMap(tree).result();
         if (map.isPresent()) {
             List<Pair<T, T>> entries = new ArrayList<>();
             boolean changed = false;
@@ -220,7 +228,7 @@ public final class ReferencePersistence {
             }
             if (changed) result = ops.createMap(entries.stream());
         } else if (!(tree instanceof StampedTag)) {
-            var list = ops.getStream(tree).result();
+            Optional<Stream<T>> list = ops.getStream(tree).result();
             if (list.isPresent()) {
                 List<T> children = new ArrayList<>();
                 boolean changed = false;

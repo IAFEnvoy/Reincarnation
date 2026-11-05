@@ -2,12 +2,13 @@ package com.iafenvoy.reincarnation.config;
 
 import com.iafenvoy.jupiter.config.container.AutoInitConfigContainer;
 import com.iafenvoy.jupiter.config.entry.*;
-import com.iafenvoy.reincarnation.api.RebirthMode;
-import net.minecraft.network.chat.Component;
-import java.util.Locale;
 import com.iafenvoy.reincarnation.Reincarnation;
+import com.iafenvoy.reincarnation.api.RebirthMode;
 import com.iafenvoy.reincarnation.api.ResetPolicy;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+
+import java.util.Locale;
 
 public final class ReincarnationServerConfig extends AutoInitConfigContainer {
     public static final ReincarnationServerConfig INSTANCE = new ReincarnationServerConfig();
@@ -28,8 +29,9 @@ public final class ReincarnationServerConfig extends AutoInitConfigContainer {
                 this.reset.resetUnknownModData.getValue(), this.reset.keepGameMode.getValue());
     }
 
-    public enum LifespanOutcome { NONE, DEATH, REINCARNATE }
-    public enum PlayerDeathMode { KILL, SPECTATOR }
+    public enum LifespanOutcome {NONE, DEATH, REINCARNATE}
+
+    public enum PlayerDeathMode {KILL, SPECTATOR}
 
     public static final class Lifespan extends AutoInitConfigCategoryBase {
         public final BooleanEntry enabled = BooleanEntry.builder("config.reincarnation.server.lifespan.enabled", false).key("enabled").tooltip("config.reincarnation.server.lifespan.enabled.tooltip").build();

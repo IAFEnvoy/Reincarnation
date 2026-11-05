@@ -26,6 +26,6 @@ public abstract class CompoundTagMixin implements ReferenceCarrier {
 
     @Inject(method = "copy()Lnet/minecraft/nbt/CompoundTag;", at = @At("RETURN"))
     private void reincarnation$copy(CallbackInfoReturnable<CompoundTag> cir) {
-        ReferencePersistence.copyTransient((CompoundTag) (Object) this, cir.getReturnValue());
+        ReferencePersistence.copyTransient(this, cir.getReturnValue());
     }
 }
