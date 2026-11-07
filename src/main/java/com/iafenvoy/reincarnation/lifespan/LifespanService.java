@@ -36,7 +36,6 @@ import net.neoforged.neoforge.common.NeoForge;
 import java.util.*;
 
 public final class LifespanService {
-    public static final long UNACCOUNTED = -1L;
     public static final ResourceKey<DamageType> DAMAGE_TYPE = ResourceKey.create(Registries.DAMAGE_TYPE, Identifier.fromNamespaceAndPath(Reincarnation.MOD_ID, "lifespan"));
     private static final Map<UUID, Pending> PENDING = new LinkedHashMap<>();
     private static final Set<UUID> EXPIRING = new HashSet<>();

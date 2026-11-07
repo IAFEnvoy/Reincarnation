@@ -5,6 +5,8 @@ import com.iafenvoy.reincarnation.api.LifeReferences;
 import com.iafenvoy.reincarnation.reference.*;
 import com.iafenvoy.reincarnation.storage.GenerationIndex;
 import com.iafenvoy.reincarnation.storage.Generations;
+import com.iafenvoy.saturn.util.FileAccess;
+import com.google.gson.JsonParser;
 import com.mojang.authlib.GameProfile;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
@@ -22,14 +24,17 @@ import net.minecraft.nbt.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
+import net.minecraft.util.ExtraCodecs;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.level.storage.SavedDataStorage;
+import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.level.storage.ValueInput;
@@ -62,7 +67,9 @@ public final class ReferenceTests {
             "generation_and_cache", ReferenceTests::generationAndCache,
             "synced_owner_and_reload", ReferenceTests::syncedOwner,
             "saved_data", ReferenceTests::savedData,
-            "index_recovery", ReferenceTests::indexRecovery);
+            "index_recovery", ReferenceTests::indexRecovery,
+            "index_codec", ReferenceTests::indexCodec,
+            "index_lifecycle", ReferenceTests::indexLifecycle);
 
     private ReferenceTests() {
     }
@@ -151,7 +158,7 @@ public final class ReferenceTests {
 
     private static void codecComposition(GameTestHelper helper) {
         UUID target = UUID.randomUUID();
-        Codec<Payload> codec = ReferencePersistence.wrap(Payload.CODEC);
+        Codec<Payload> codec = Payload.CODEC;
         Payload payload = new Payload(LifeReferences.restore(target, 3), List.of(LifeReferences.restore(target, 1)),
                 Map.of("a/b", List.of(LifeReferences.restore(target, 2))));
         CompoundTag prefix = new CompoundTag();
@@ -359,6 +366,65 @@ public final class ReferenceTests {
             helper.succeed();
         } catch (Exception e) {
             throw new IllegalStateException(e);
+        }
+    }
+
+    private static void indexCodec(GameTestHelper helper) {
+        try {
+            Path file = Files.createTempDirectory("reincarnation-index-codec-").resolve("generations.dat");
+            UUID first = new UUID(0, 1);
+            UUID second = new UUID(0, 2);
+            String accounts = "[{\"uuid\":\"" + second + "\",\"generation\":7},{\"uuid\":\"" + first + "\",\"generation\":3}]";
+            helper.assertTrue(FileAccess.NBT.save(ExtraCodecs.JSON, file,
+                    JsonParser.parseString("{\"version\":1,\"accounts\":" + accounts + "}")), "legacy-shaped index written");
+            GenerationIndex index = GenerationIndex.open(file);
+            helper.assertValueEqual(index.current(first), 3L, "existing UUID strings and generations load");
+            helper.assertValueEqual(index.current(second), 7L, "all accounts survive loading");
+            index.commit(first, 3, 4);
+            CompoundTag encoded = FileAccess.NBT.load(CompoundTag.CODEC, file).orElseThrow();
+            ListTag saved = encoded.getList("accounts").orElseThrow();
+            CompoundTag entry = (CompoundTag) saved.getFirst();
+            helper.assertTrue(encoded.get("version") instanceof IntTag && entry.get("uuid") instanceof StringTag
+                    && entry.get("generation") instanceof LongTag, "encoding keeps the existing NBT field types");
+            helper.assertValueEqual(entry.getString("uuid").orElseThrow(), first.toString(), "accounts encode in UUID order");
+            helper.assertValueEqual(GenerationIndex.open(file).current(first), 4L, "composed codec persists transitions");
+
+            for (String invalid : List.of(
+                    "{\"version\":2,\"accounts\":" + accounts + "}",
+                    "{\"accounts\":" + accounts + "}",
+                    "{\"version\":1}",
+                    "{\"version\":1,\"accounts\":[{\"uuid\":\"" + first + "\",\"generation\":-1}]}",
+                    "{\"version\":1,\"accounts\":[{\"uuid\":\"" + first + "\",\"generation\":3},{\"uuid\":\"" + first + "\",\"generation\":4}]}",
+                    "{\"version\":1,\"accounts\":[{\"uuid\":\"" + first + "\",\"generation\":3},{\"uuid\":\"invalid\",\"generation\":4}]}",
+                    "{\"version\":1,\"accounts\":[{\"uuid\":\"" + first + "\",\"generation\":3},{\"uuid\":\"" + second + "\"}]}")) {
+                helper.assertTrue(FileAccess.NBT.save(ExtraCodecs.JSON, file, JsonParser.parseString(invalid)), "invalid fixture written");
+                try {
+                    GenerationIndex.open(file);
+                    helper.fail("Invalid index accepted, possibly through a partial result: " + invalid);
+                } catch (IllegalStateException _) {
+                }
+            }
+            helper.succeed();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static void indexLifecycle(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        UUID account = UUID.randomUUID();
+        helper.assertValueEqual(Generations.current(server, account), 0L, "account starts in the first generation");
+        Path file = server.getWorldPath(LevelResource.DATA).resolve("reincarnation/generations.dat");
+        GenerationIndex.open(file).commit(account, 0, 1);
+        helper.assertValueEqual(Generations.current(server, account), 0L, "active index is cached");
+        Generations.stop();
+        try {
+            helper.assertValueEqual(Generations.current(server, account), 1L, "stopping releases the cached index");
+            Generations.initialize(server);
+            helper.assertValueEqual(Generations.current(server, account), 1L, "initialization reloads persisted generations");
+            helper.succeed();
+        } finally {
+            Generations.initialize(server);
         }
     }
 

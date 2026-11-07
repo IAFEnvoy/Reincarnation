@@ -182,7 +182,6 @@ public final class ReincarnationCommand {
             if (found.isEmpty())
                 throw error(Component.translatable("command.reincarnation.error.generation", LifeNumbers.display(generation)));
             LifeViewOpenScreenData data = lifeView(service, account, generation, page, PlayerInformation.collectAll(found.get()));
-            data.validateSize(viewer.registryAccess());
             ScreenOpener.open(viewer, data);
             return 1;
         } catch (RuntimeException failure) {

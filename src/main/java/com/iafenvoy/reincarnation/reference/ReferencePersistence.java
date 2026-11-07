@@ -23,26 +23,6 @@ public final class ReferencePersistence {
     }
 
     /**
-     * Compose complete object codecs while retaining the caller's prefix and existing extension fields.
-     */
-    public static <A> Codec<A> wrap(Codec<A> codec) {
-        return new Codec<>() {
-            @Override
-            public <T> DataResult<T> encode(A value, DynamicOps<T> ops, T prefix) {
-                return codec.encode(value, ops, prefix).map(encoded -> {
-                    copyTransient(prefix, encoded);
-                    return pack(ops, encoded);
-                });
-            }
-
-            @Override
-            public <T> DataResult<Pair<A, T>> decode(DynamicOps<T> ops, T input) {
-                return codec.decode(ops, restore(ops, input));
-            }
-        };
-    }
-
-    /**
      * Validate every table before assigning any transient stamps. Serialized input is never edited.
      */
     public static <T> T restore(DynamicOps<T> ops, T tree) {

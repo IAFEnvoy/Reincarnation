@@ -82,6 +82,7 @@ public final class ReincarnationService {
 
     public static void stop() {
         instance = null;
+        Generations.stop();
     }
 
     public LifeStore store() {

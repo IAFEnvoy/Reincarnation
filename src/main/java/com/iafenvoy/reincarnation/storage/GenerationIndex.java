@@ -3,9 +3,9 @@ package com.iafenvoy.reincarnation.storage;
 import com.iafenvoy.saturn.util.FileAccess;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.UUIDUtil;
+import net.minecraft.util.ExtraCodecs;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,35 +19,21 @@ import java.util.UUID;
  * Persisted account generations. Loading failure must never look like a fresh index.
  */
 public final class GenerationIndex {
-    private static final Codec<Map<UUID, Long>> CODEC = CompoundTag.CODEC.comapFlatMap(root -> {
-        try {
-            if (root.getInt("version").orElse(-1) != 1)
-                throw new IllegalArgumentException("Unsupported generation index version");
-            Map<UUID, Long> values = new HashMap<>();
-            for (Tag tag : root.getList("accounts").orElseThrow()) {
-                if (!(tag instanceof CompoundTag entry)) throw new IllegalArgumentException("Malformed account entry");
-                UUID uuid = UUID.fromString(entry.getString("uuid").orElseThrow());
-                long generation = entry.getLong("generation").orElseThrow();
-                if (generation < 0 || values.putIfAbsent(uuid, generation) != null)
-                    throw new IllegalArgumentException("Invalid or duplicate account generation");
-            }
-            return DataResult.success(values);
-        } catch (RuntimeException failure) {
-            return DataResult.error(() -> "Invalid generation index: " + failure.getMessage());
-        }
-    }, values -> {
-        CompoundTag root = new CompoundTag();
-        root.putInt("version", 1);
-        ListTag entries = new ListTag();
-        values.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(value -> {
-            CompoundTag entry = new CompoundTag();
-            entry.putString("uuid", value.getKey().toString());
-            entry.putLong("generation", value.getValue());
-            entries.add(entry);
-        });
-        root.put("accounts", entries);
-        return root;
-    });
+    private record Account(UUID uuid, long generation) {
+        private static final Codec<Account> CODEC = RecordCodecBuilder.create(i -> i.group(
+                UUIDUtil.STRING_CODEC.fieldOf("uuid").forGetter(Account::uuid),
+                ExtraCodecs.NON_NEGATIVE_LONG.fieldOf("generation").forGetter(Account::generation)
+        ).apply(i, Account::new));
+    }
+
+    private static final Codec<Map<UUID, Long>> CODEC = Account.CODEC.listOf().comapFlatMap(accounts -> {
+        Map<UUID, Long> values = new HashMap<>();
+        for (Account account : accounts)
+            if (values.putIfAbsent(account.uuid(), account.generation()) != null)
+                return DataResult.error(() -> "Duplicate account generation: " + account.uuid());
+        return DataResult.success(values);
+    }, values -> values.entrySet().stream().sorted(Map.Entry.comparingByKey())
+            .map(entry -> new Account(entry.getKey(), entry.getValue())).toList());
     private final Path file;
     private Map<UUID, Long> generations;
 
@@ -66,8 +52,7 @@ public final class GenerationIndex {
                 Files.writeString(marker, "Reincarnation generation index v1\n", StandardOpenOption.CREATE_NEW);
                 return index;
             }
-            Map<UUID, Long> values = FileAccess.NBT.load(CODEC, file)
-                    .orElseThrow(() -> new IllegalStateException("Cannot decode generation index"));
+            Map<UUID, Long> values = FileAccess.NBT.load(CODEC, file).orElseThrow(() -> new IllegalStateException("Cannot decode generation index"));
             if (!Files.exists(marker))
                 Files.writeString(marker, "Reincarnation generation index v1\n", StandardOpenOption.CREATE_NEW);
             return new GenerationIndex(file, values);

@@ -1,10 +1,7 @@
 package com.iafenvoy.reincarnation.data.information;
 
-import com.iafenvoy.reincarnation.api.ReincarnationException;
 import com.iafenvoy.saturn.data.information.model.InformationDocument;
 import com.iafenvoy.saturn.screen.opener.OpenScreenData;
-import io.netty.buffer.Unpooled;
-import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -15,9 +12,8 @@ import net.minecraft.network.codec.StreamCodec;
 import java.util.List;
 import java.util.UUID;
 
-public record LifeViewOpenScreenData(UUID account, String name, long generation, List<Life> lives,
-                                     int page, int pages, boolean current,
-                                     InformationDocument document) implements OpenScreenData {
+public record LifeViewOpenScreenData(UUID account, String name, long generation, List<Life> lives, int page, int pages,
+                                     boolean current, InformationDocument document) implements OpenScreenData {
     public static final int PAGE_SIZE = 32;
     public static final int MAX_BYTES = 1_000_000;
     private static final StreamCodec<RegistryFriendlyByteBuf, LifeViewOpenScreenData> CONTENT_CODEC = StreamCodec.composite(
@@ -37,17 +33,6 @@ public record LifeViewOpenScreenData(UUID account, String name, long generation,
         lives = List.copyOf(lives);
         if (generation < 0 || page < 1 || pages < page || lives.isEmpty() || lives.size() > PAGE_SIZE)
             throw new IllegalArgumentException("Invalid life view page");
-    }
-
-    public void validateSize(RegistryAccess registries) {
-        RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), registries);
-        try {
-            CONTENT_CODEC.encode(buffer, this);
-            if (buffer.readableBytes() > MAX_BYTES)
-                throw new ReincarnationException("error.reincarnation.view_too_large");
-        } finally {
-            buffer.release();
-        }
     }
 
     public record Life(long generation, long endedAt, Component reason) {

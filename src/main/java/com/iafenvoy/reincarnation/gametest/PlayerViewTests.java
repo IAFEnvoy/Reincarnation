@@ -216,7 +216,6 @@ final class PlayerViewTests {
                 Vec3.ZERO, "survival", 0, 0, 0, 0, 0, 0, "");
     }
 
-    @SuppressWarnings("UnstableApiUsage")
     private static void screenTransport(GameTestHelper helper) {
         ServerPlayer player = LifecycleTests.connect(helper);
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), player.registryAccess());
@@ -253,7 +252,6 @@ final class PlayerViewTests {
             LifeViewOpenScreenData data = new LifeViewOpenScreenData(player.getUUID(), player.getGameProfile().name(), Long.MAX_VALUE,
                     List.of(new LifeViewOpenScreenData.Life(Long.MAX_VALUE, 1234, Component.translatable("reason.reincarnation.command").withStyle(ChatFormatting.YELLOW))),
                     1, 1, false, new InformationDocument(List.of(styled)));
-            data.validateSize(player.registryAccess());
             OpenScreenS2CPayload.STREAM_CODEC.encode(buffer, new OpenScreenS2CPayload(data));
             LifeViewOpenScreenData decoded = (LifeViewOpenScreenData) OpenScreenS2CPayload.STREAM_CODEC.decode(buffer).data();
             helper.assertValueEqual(decoded, data, "Saturn dispatch preserves registry groups, styles, nested values and full generation precision");
@@ -263,13 +261,6 @@ final class PlayerViewTests {
                     new InformationValue.Text(Component.literal("x".repeat(16_000))), Optional.empty());
             LifeViewOpenScreenData oversized = new LifeViewOpenScreenData(data.account(), data.name(), 0, data.lives(), 1, 1, true,
                     new InformationDocument(Collections.nCopies(70, large)));
-            try {
-                oversized.validateSize(player.registryAccess());
-                helper.fail("oversized screen data passed the command preflight");
-            } catch (ReincarnationException expected) {
-                helper.assertValueEqual(((TranslatableContents) expected.component().getContents()).getKey(),
-                        "error.reincarnation.view_too_large", "oversized documents have a localized failure");
-            }
             buffer.clear();
             try {
                 LifeViewOpenScreenData.STREAM_CODEC.encode(buffer, oversized);
@@ -292,7 +283,6 @@ final class PlayerViewTests {
         }
     }
 
-    @SuppressWarnings("UnstableApiUsage")
     private static void refresh(GameTestHelper helper) {
         ServerPlayer player = LifecycleTests.connect(helper);
         ServerPlayer target = LifecycleTests.connect(helper);

@@ -263,8 +263,8 @@ public final class LifespanTests {
                 h.assertTrue(condition("{\"type\":\"reincarnation:lifespan\",\"comparison\":\"==\",\"compare_to\":60}", pig), "remaining condition uses modified value");
                 h.assertTrue(condition("{\"type\":\"reincarnation:lifespan\",\"field\":\"fraction\",\"comparison\":\"==\",\"compare_to\":0.75}", pig), "fraction condition uses total");
                 for (String type : List.of("add_lifespan", "remove_lifespan")) {
-                    h.assertTrue(EntityAction.SINGLE_CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(
-                            "{\"type\":\"reincarnation:" + type + "\",\"amount\":-3}")).error().isPresent(), "negative constant rejected: " + type);
+                    action("{\"type\":\"reincarnation:" + type + "\",\"amount\":-3}").execute(pig, FormulaContext.of(pig));
+                    h.assertValueEqual(LifespanApi.get(pig), new Lifespan(60, 80), "negative constant does not reverse action: " + type);
                     action("{\"type\":\"reincarnation:" + type + "\",\"amount\":\"-3\"}").execute(pig, FormulaContext.of(pig));
                     h.assertValueEqual(LifespanApi.get(pig), new Lifespan(60, 80), "negative formula does not reverse action: " + type);
                 }

@@ -11,10 +11,8 @@ import com.iafenvoy.reincarnation.view.ReincarnationViews;
 import com.iafenvoy.saturn.data.information.PlayerInformation;
 import com.iafenvoy.saturn.data.information.PlayerViewSnapshot;
 import com.iafenvoy.saturn.data.information.model.InformationDocument;
-import io.netty.buffer.Unpooled;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -30,7 +28,6 @@ public final class ServerNetworkHandler {
     public static void refresh(ServerPlayer viewer, LifeViewRefreshC2SPayload request) {
         Optional<InformationDocument> document = Optional.empty();
         Optional<LifeViewOpenScreenData.Life> life = Optional.empty();
-        RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), viewer.registryAccess());
         try {
             if (viewer.getUUID().equals(request.account()) || Commands.<CommandSourceStack>hasPermission(Commands.LEVEL_GAMEMASTERS).test(viewer.createCommandSourceStack())) {
                 MinecraftServer server = viewer.level().getServer();
@@ -47,13 +44,10 @@ public final class ServerNetworkHandler {
                 }
             }
             LifeViewRefreshS2CPayload response = new LifeViewRefreshS2CPayload(request.requestId(), request.account(), request.generation(), life, document);
-            LifeViewRefreshS2CPayload.STREAM_CODEC.encode(buffer, response);
             PacketDistributor.sendToPlayer(viewer, response);
         } catch (RuntimeException failure) {
             Reincarnation.LOGGER.warn("Cannot refresh life {} of {}", request.generation(), request.account(), failure);
             PacketDistributor.sendToPlayer(viewer, new LifeViewRefreshS2CPayload(request.requestId(), request.account(), request.generation(), Optional.empty(), Optional.empty()));
-        } finally {
-            buffer.release();
         }
     }
 }

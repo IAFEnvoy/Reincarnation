@@ -3,26 +3,29 @@ package com.iafenvoy.reincarnation.storage;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 
-import java.util.Map;
 import java.util.UUID;
-import java.util.WeakHashMap;
 
 public final class Generations {
-    private static final Map<MinecraftServer, GenerationIndex> INDICES = new WeakHashMap<>();
+    private static GenerationIndex index;
 
     private Generations() {
     }
 
     private static synchronized GenerationIndex index(MinecraftServer server) {
-        return INDICES.computeIfAbsent(server, key -> GenerationIndex.open(key.getWorldPath(LevelResource.DATA).resolve("reincarnation/generations.dat")));
+        if (index == null) initialize(server);
+        return index;
     }
 
     public static long current(MinecraftServer server, UUID account) {
         return index(server).current(account);
     }
 
-    public static void initialize(MinecraftServer server) {
-        index(server);
+    public static synchronized void initialize(MinecraftServer server) {
+        index = GenerationIndex.open(server.getWorldPath(LevelResource.DATA).resolve("reincarnation/generations.dat"));
+    }
+
+    public static synchronized void stop() {
+        index = null;
     }
 
     /**

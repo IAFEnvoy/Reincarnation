@@ -158,6 +158,7 @@ final class LifecycleTests {
         return new ReincarnationRequest(player.level().dimension(), player.position(), 0, 0, Component.literal("测试转生"), ResetPolicy.DEFAULT);
     }
 
+    @SuppressWarnings("UnstableApiUsage")
     static ServerPlayer connect(GameTestHelper helper, GameProfile profile) {
         MinecraftServer server = helper.getLevel().getServer();
         Optional<CompoundTag> data = server.getPlayerList().loadPlayerData(new NameAndId(profile));
