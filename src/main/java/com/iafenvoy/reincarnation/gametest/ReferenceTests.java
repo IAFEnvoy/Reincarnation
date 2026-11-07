@@ -34,6 +34,7 @@ import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.level.storage.ValueInput;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 import net.neoforged.neoforge.gametest.GameTestHooks;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -77,6 +78,7 @@ public final class ReferenceTests {
         tests.putAll(ReasonTests.tests());
         tests.putAll(LifespanTests.tests());
         tests.putAll(DeathDamageTests.tests());
+        if (ModList.get().isLoaded("kubejs")) tests.putAll(KubeJsTests.tests());
         DeferredRegister<Consumer<GameTestHelper>> functions = DeferredRegister.create(Registries.TEST_FUNCTION, MOD_ID);
         tests.forEach((name, test) -> functions.register("gametest/" + name, () -> test));
         functions.register(bus);

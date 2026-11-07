@@ -10,9 +10,12 @@ import com.iafenvoy.reincarnation.config.ReincarnationServerConfig.LifespanOutco
 import com.iafenvoy.reincarnation.config.ReincarnationServerConfig.PlayerDeathMode;
 import com.iafenvoy.reincarnation.event.LifeSpanEndEvent;
 import com.iafenvoy.reincarnation.event.LifeSpanRebirthEvent;
+import com.iafenvoy.reincarnation.lifecycle.AttachmentRetention;
 import com.iafenvoy.reincarnation.lifecycle.ReincarnationService;
 import com.iafenvoy.reincarnation.registry.ReincarnationAttachments;
 import com.iafenvoy.reincarnation.storage.Generations;
+import com.iafenvoy.saturn.runtime.ability.AbilityGrantService;
+import com.iafenvoy.saturn.runtime.ability.PassiveAttributeService;
 import com.iafenvoy.saturn.runtime.resulting.Failures;
 import com.iafenvoy.saturn.runtime.resulting.Result;
 import net.minecraft.core.Holder;
@@ -171,9 +174,13 @@ public final class LifespanService {
             if (mode == RebirthMode.NEW_LIFE) {
                 fresh = ReincarnationApi.reincarnate((ServerPlayer) entity, ReincarnationRequest.atSpawn((ServerPlayer) entity, reason));
             } else {
+                AttachmentRetention.reset(entity, ReincarnationServerConfig.INSTANCE.resetPolicy());
                 NeoForge.EVENT_BUS.post(new LifeSpanRebirthEvent.Reset(entity, ledger));
+                AbilityGrantService.recalculate(entity);
+                PassiveAttributeService.reconcile(entity);
                 long base = ReincarnationServerConfig.INSTANCE.lifespan.baseLifespan.getValue();
                 write(entity, base > 0 ? new Lifespan(base, base) : Lifespan.CLOSED);
+                if (ReincarnationServerConfig.INSTANCE.lifespan.killOnReset.getValue()) kill(entity);
             }
             notify(new LifeSpanRebirthEvent.Post(fresh, fresh.getData(ReincarnationAttachments.LIFESPAN), mode));
             if (fresh instanceof ServerPlayer player)

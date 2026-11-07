@@ -22,6 +22,7 @@ import com.iafenvoy.reincarnation.storage.Generations;
 import com.iafenvoy.saturn.data.action.EntityAction;
 import com.iafenvoy.saturn.data.condition.EntityCondition;
 import com.iafenvoy.saturn.data.information.PlayerViewSnapshot;
+import com.iafenvoy.saturn.runtime.resulting.Result;
 import com.iafenvoy.saturn.util.formula.FormulaContext;
 import com.mojang.authlib.GameProfile;
 import com.mojang.serialization.JsonOps;
@@ -67,17 +68,18 @@ public final class LifespanTests {
                 "lifespan_legacy", LifespanTests::legacy,
                 "lifespan_recovery", LifespanTests::recovery,
                 "lifespan_warning", LifespanTests::warning,
-                "lifespan_death_reason", LifespanTests::deathReason);
+                "lifespan_death_reason", LifespanTests::deathReason,
+                "lifespan_kill_on_reset", LifespanTests::killOnReset);
     }
 
     private record Settings(boolean enabled, long base, int age, LifespanOutcome outcome, PlayerDeathMode death,
                             RebirthMode rebirth, boolean creative, boolean spectator, boolean autoDeath,
-                            double warning) implements AutoCloseable {
+                            double warning, boolean killOnReset) implements AutoCloseable {
         static Settings setup() {
             ReincarnationServerConfig.Lifespan c = ReincarnationServerConfig.INSTANCE.lifespan;
             Settings old = new Settings(c.enabled.getValue(), c.baseLifespan.getValue(), c.agePerSettle.getValue(), c.onExpire.getValue(),
                     c.playerDeathMode.getValue(), c.playerRebirthMode.getValue(), c.ageCreative.getValue(), c.ageSpectator.getValue(),
-                    ReincarnationServerConfig.INSTANCE.lifecycle.autoReincarnateOnDeath.getValue(), c.warningFraction.getValue());
+                    ReincarnationServerConfig.INSTANCE.lifecycle.autoReincarnateOnDeath.getValue(), c.warningFraction.getValue(), c.killOnReset.getValue());
             c.enabled.setValue(true);
             c.baseLifespan.setValue(100L);
             c.agePerSettle.setValue(20);
@@ -87,6 +89,7 @@ public final class LifespanTests {
             c.ageCreative.setValue(false);
             c.ageSpectator.setValue(false);
             c.warningFraction.setValue(0.1D);
+            c.killOnReset.setValue(false);
             ReincarnationServerConfig.INSTANCE.lifecycle.autoReincarnateOnDeath.setValue(false);
             LifespanService.clear();
             return old;
@@ -104,6 +107,7 @@ public final class LifespanTests {
             c.ageCreative.setValue(this.creative);
             c.ageSpectator.setValue(this.spectator);
             c.warningFraction.setValue(this.warning);
+            c.killOnReset.setValue(this.killOnReset);
             ReincarnationServerConfig.INSTANCE.lifecycle.autoReincarnateOnDeath.setValue(this.autoDeath);
             LifespanService.clear();
         }
@@ -116,6 +120,25 @@ public final class LifespanTests {
         pig.snapTo(pos.getX(), pos.getY(), pos.getZ(), 0, 0);
         helper.getLevel().addFreshEntity(pig);
         return pig;
+    }
+
+    private static void killOnReset(GameTestHelper h) {
+        try (Settings ignored = Settings.setup()) {
+            Pig pig = pig(h);
+            ServerPlayer old = LifecycleTests.connect(h);
+            try {
+                ReincarnationServerConfig.INSTANCE.lifespan.killOnReset.setValue(true);
+                h.assertTrue(LifespanApi.rebirth(pig, RebirthMode.RESET, Component.literal("reset kill")).getFailure().isEmpty(), "reset succeeds with optional kill");
+                h.assertTrue(pig.isDeadOrDying() && pig.getLastDamageSource().is(LifespanService.DAMAGE_TYPE), "optional reset kill uses lifespan damage");
+                h.assertValueEqual(LifespanApi.get(pig), new Lifespan(100, 100), "reset finishes its ledger before killing");
+                Result<LivingEntity> result = LifespanApi.rebirth(old, RebirthMode.NEW_LIFE, Component.literal("new life"));
+                h.assertTrue(result.getFailure().isEmpty() && result.getData().orElseThrow().isAlive(), "kill-on-reset never kills a new-life player");
+                h.succeed();
+            } finally {
+                pig.discard();
+                LifecycleTests.remove(old.connection.player);
+            }
+        }
     }
 
     private static void ledger(GameTestHelper h) {
@@ -231,10 +254,22 @@ public final class LifespanTests {
         try (Settings ignored = Settings.setup()) {
             Pig pig = pig(h);
             try {
-                action("{\"type\":\"reincarnation:modify_lifespan\",\"mode\":\"set\",\"amount\":80}").execute(pig, FormulaContext.of(pig));
-                action("{\"type\":\"reincarnation:modify_lifespan\",\"amount\":-20}").execute(pig, FormulaContext.of(pig));
+                action("{\"type\":\"reincarnation:add_lifespan\",\"amount\":0}").execute(pig, FormulaContext.of(pig));
+                action("{\"type\":\"reincarnation:remove_lifespan\",\"amount\":0}").execute(pig, FormulaContext.of(pig));
+                h.assertValueEqual(LifespanApi.get(pig), Lifespan.UNACCOUNTED, "zero amounts do not open a ledger");
+                LifespanApi.set(pig, 0);
+                action("{\"type\":\"reincarnation:add_lifespan\",\"amount\":80}").execute(pig, FormulaContext.of(pig));
+                action("{\"type\":\"reincarnation:remove_lifespan\",\"amount\":\"4 * 5\"}").execute(pig, FormulaContext.of(pig));
                 h.assertTrue(condition("{\"type\":\"reincarnation:lifespan\",\"comparison\":\"==\",\"compare_to\":60}", pig), "remaining condition uses modified value");
                 h.assertTrue(condition("{\"type\":\"reincarnation:lifespan\",\"field\":\"fraction\",\"comparison\":\"==\",\"compare_to\":0.75}", pig), "fraction condition uses total");
+                for (String type : List.of("add_lifespan", "remove_lifespan")) {
+                    h.assertTrue(EntityAction.SINGLE_CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(
+                            "{\"type\":\"reincarnation:" + type + "\",\"amount\":-3}")).error().isPresent(), "negative constant rejected: " + type);
+                    action("{\"type\":\"reincarnation:" + type + "\",\"amount\":\"-3\"}").execute(pig, FormulaContext.of(pig));
+                    h.assertValueEqual(LifespanApi.get(pig), new Lifespan(60, 80), "negative formula does not reverse action: " + type);
+                }
+                action("{\"type\":\"reincarnation:remove_lifespan\",\"amount\":10000}").execute(pig, FormulaContext.of(pig));
+                h.assertValueEqual(LifespanApi.get(pig), new Lifespan(0, 80), "removal clamps to zero without changing total");
                 action("{\"type\":\"reincarnation:unlimited_lifespan\"}").execute(pig, FormulaContext.of(pig));
                 h.assertTrue(condition("{\"type\":\"reincarnation:lifespan_state\",\"state\":\"unlimited\"}", pig), "unlimited state condition");
                 h.assertTrue(!condition("{\"type\":\"reincarnation:lifespan\",\"comparison\":\"<\",\"compare_to\":0}", pig), "unlimited sentinel is not a negative finite lifespan");
@@ -242,7 +277,6 @@ public final class LifespanTests {
                 h.assertTrue(!LifespanApi.get(pig).finite(), "action defers rebirth until queue is flushed");
                 LifespanService.flush();
                 h.assertValueEqual(LifespanApi.get(pig), new Lifespan(100, 100), "queued action reopens ledger");
-                h.assertTrue(EntityAction.SINGLE_CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("{\"type\":\"reincarnation:modify_lifespan\",\"mode\":\"set\",\"amount\":-3}")).error().isPresent(), "invalid constant set rejected during decoding");
                 h.succeed();
             } finally {
                 pig.discard();

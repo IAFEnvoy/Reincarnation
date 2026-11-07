@@ -3,7 +3,7 @@ package com.iafenvoy.reincarnation.lifecycle;
 import com.iafenvoy.reincarnation.api.ResetPolicy;
 import com.iafenvoy.reincarnation.mixin.AttachmentTypeAccess;
 import com.iafenvoy.reincarnation.registry.tag.AttachmentTypeTags;
-import com.iafenvoy.saturn.util.HolderHelper;
+import com.iafenvoy.saturn.registry.SaturnAttachments;
 import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -12,23 +12,42 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.neoforged.neoforge.attachment.AttachmentHolder;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.attachment.IAttachmentCopyHandler;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 
-final class AttachmentRetention {
+import java.util.LinkedHashSet;
+import java.util.Set;
+
+public final class AttachmentRetention {
     private AttachmentRetention() {
     }
 
     static ListTag capture(ServerPlayer player, ResetPolicy policy) {
         ListTag kept = new ListTag();
+        retained(player, policy).forEach(type -> kept.add(StringTag.valueOf(NeoForgeRegistries.ATTACHMENT_TYPES.getKey(type).toString())));
+        return kept;
+    }
+
+    private static Set<AttachmentType<?>> retained(Entity entity, ResetPolicy policy) {
+        Set<AttachmentType<?>> kept = new LinkedHashSet<>();
         if (policy.resetUnknownModData()) return kept;
         for (Holder.Reference<AttachmentType<?>> holder : NeoForgeRegistries.ATTACHMENT_TYPES.listElements().toList())
-            if (player.hasData(holder.value()) && copyOnDeath(holder.value()) && holder.is(AttachmentTypeTags.KEEP_ON_REBIRTH))
-                kept.add(StringTag.valueOf(HolderHelper.id(holder).toString()));
+            if (entity.hasData(holder.value()) && copyOnDeath(holder.value())
+                    && (holder.is(AttachmentTypeTags.KEEP_ON_REBIRTH)
+                    || !policy.clearResources() && holder.value() == SaturnAttachments.RESOURCE_HOLDER.get()))
+                kept.add(holder.value());
         return kept;
+    }
+
+    public static void reset(LivingEntity entity, ResetPolicy policy) {
+        Set<AttachmentType<?>> kept = retained(entity, policy);
+        for (AttachmentType<?> type : NeoForgeRegistries.ATTACHMENT_TYPES)
+            if (entity.hasData(type) && !kept.contains(type)) entity.removeData(type);
     }
 
     static void restore(ServerPlayer player, LifeTransaction tx, CompoundTag archive, CompoundTag oldData) {

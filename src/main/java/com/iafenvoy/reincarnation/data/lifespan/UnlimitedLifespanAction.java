@@ -7,8 +7,9 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.NotNull;
 
-public record UnlimitedLifespanAction() implements EntityAction {
-    public static final MapCodec<UnlimitedLifespanAction> CODEC = MapCodec.unit(UnlimitedLifespanAction::new);
+public enum UnlimitedLifespanAction implements EntityAction {
+    INSTANCE;
+    public static final MapCodec<UnlimitedLifespanAction> CODEC = MapCodec.unit(INSTANCE);
 
     @Override
     public void execute(@NotNull EntityActionContext context) {

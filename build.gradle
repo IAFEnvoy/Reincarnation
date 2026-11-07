@@ -21,6 +21,7 @@ sourceSets.main.resources {
 repositories {
     maven { url = 'https://cursemaven.com' }
     maven { url = "https://maven.sighs.cc/repository/maven-public/" }
+    maven { url = "https://maven.latvian.dev/releases" }
 }
 
 base {
@@ -77,6 +78,8 @@ dependencies {
     implementation 'curse.maven:jupiter-1072905:8569832'
     implementation "curse.maven:saturn-lib-1767455:9449659"
     implementation "com.sighs:ApricityUI-neoforge-26.1:${apricityui_version}"
+
+    compileOnly "dev.latvian.mods:kubejs-neoforge:${kubejs_version}"
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {

@@ -1,14 +1,15 @@
 package com.iafenvoy.reincarnation.gametest;
 
-import com.iafenvoy.reincarnation.api.ReincarnationContext;
-import com.iafenvoy.reincarnation.api.ReincarnationHandler;
-import com.iafenvoy.reincarnation.api.ReincarnationRequest;
-import com.iafenvoy.reincarnation.api.ResetPolicy;
+import com.iafenvoy.reincarnation.api.*;
 import com.iafenvoy.reincarnation.config.ReincarnationServerConfig;
+import com.iafenvoy.reincarnation.event.LifeSpanRebirthEvent;
 import com.iafenvoy.reincarnation.event.RegisterReincarnationHandlersEvent;
 import com.iafenvoy.reincarnation.lifecycle.LifeTransaction;
 import com.iafenvoy.reincarnation.lifecycle.ReincarnationService;
+import com.iafenvoy.reincarnation.lifespan.Lifespan;
 import com.iafenvoy.reincarnation.registry.tag.AttachmentTypeTags;
+import com.iafenvoy.saturn.attachment.ResourceHolderAttachment;
+import com.iafenvoy.saturn.registry.SaturnAttachments;
 import com.mojang.authlib.GameProfile;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.Holder;
@@ -51,7 +52,8 @@ final class AttachmentTests {
     private static final Map<UUID, Consumer<ServerPlayer>> CHECKS = new HashMap<>();
 
     static Map<String, Consumer<GameTestHelper>> tests() {
-        return Map.of("attachment_retention", AttachmentTests::retention, "lifecycle_event_order", AttachmentTests::eventOrder);
+        return Map.of("attachment_retention", AttachmentTests::retention, "lifecycle_event_order", AttachmentTests::eventOrder,
+                "attachment_in_place_reset", AttachmentTests::inPlaceReset, "resource_retention", AttachmentTests::resources);
     }
 
     static void register(IEventBus bus) {
@@ -127,11 +129,15 @@ final class AttachmentTests {
     }
 
     private static ServerPlayer interruptAndRecover(GameTestHelper helper, ServerPlayer active, Runnable beforeRecovery) {
+        return interruptAndRecover(helper, active, request(active), beforeRecovery);
+    }
+
+    private static ServerPlayer interruptAndRecover(GameTestHelper helper, ServerPlayer active, ReincarnationRequest request, Runnable beforeRecovery) {
         MinecraftServer server = helper.getLevel().getServer();
         ReincarnationService service = ReincarnationService.get();
         FAIL.add(active.getUUID());
         try {
-            service.reincarnate(active, request(active));
+            service.reincarnate(active, request);
             helper.fail("interrupted transaction fixture did not fail");
         } catch (IllegalStateException _) {
         }
@@ -142,6 +148,77 @@ final class AttachmentTests {
         ReincarnationService.stop();
         ReincarnationService.start(server);
         return LifecycleTests.connect(helper, profile);
+    }
+
+    private static void inPlaceReset(GameTestHelper h) {
+        ReincarnationServerConfig config = ReincarnationServerConfig.INSTANCE;
+        String original = config.serialize();
+        Map<TagKey<AttachmentType<?>>, List<Holder<AttachmentType<?>>>> originalTags = tags();
+        ServerPlayer player = LifecycleTests.connect(h);
+        Consumer<LifeSpanRebirthEvent.Pre> veto = event -> {
+            if (event.getEntity() == player) event.setCanceled(true);
+        };
+        try {
+            config.lifespan.killOnReset.setValue(false);
+            config.lifespan.baseLifespan.setValue(100L);
+            config.reset.resetUnknownModData.setValue(false);
+            keep(TAG_ONLY.get(), KEPT.get());
+            seed(player);
+            NeoForge.EVENT_BUS.addListener(veto);
+            try {
+                h.assertTrue(LifespanApi.rebirth(player, RebirthMode.RESET, Component.literal("veto")).getFailure().isPresent(), "reset can be cancelled");
+                h.assertValueEqual(player.getData(COPY_ONLY.get()), 20, "cancellation leaves attachments intact");
+            } finally {
+                NeoForge.EVENT_BUS.unregister(veto);
+            }
+            h.assertTrue(LifespanApi.rebirth(player, RebirthMode.RESET, Component.literal("reset")).getFailure().isEmpty(), "generic reset succeeds");
+            h.assertTrue(player.connection.player == player, "in-place reset retains the player object");
+            h.assertValueEqual(player.getData(KEPT.get()), 30, "tag plus copyOnDeath retains in-place data");
+            h.assertTrue(!player.hasData(TAG_ONLY.get()) && !player.hasData(COPY_ONLY.get()) && !player.hasData(TRANSFORMED.get()), "all other attachments are removed generically");
+            h.assertValueEqual(LifespanApi.get(player), new Lifespan(100, 100), "reset rebuilds the lifespan ledger after cleanup");
+            config.reset.resetUnknownModData.setValue(true);
+            LifespanApi.rebirth(player, RebirthMode.RESET, Component.literal("strict"));
+            h.assertTrue(!player.hasData(KEPT.get()), "strict reset overrides the retention tag in-place too");
+            h.succeed();
+        } finally {
+            config.deserialize(original);
+            tags(originalTags);
+            LifecycleTests.remove(player.connection.player);
+        }
+    }
+
+    private static void resources(GameTestHelper h) {
+        ReincarnationServerConfig config = ReincarnationServerConfig.INSTANCE;
+        String original = config.serialize();
+        Map<TagKey<AttachmentType<?>>, List<Holder<AttachmentType<?>>>> originalTags = tags();
+        ServerPlayer player = LifecycleTests.connect(h);
+        try {
+            keep();
+            config.reset.resetUnknownModData.setValue(false);
+            config.reset.clearResources.setValue(false);
+            config.lifespan.killOnReset.setValue(false);
+            ResourceHolderAttachment resources = player.getData(SaturnAttachments.RESOURCE_HOLDER);
+            LifespanApi.rebirth(player, RebirthMode.RESET, Component.literal("retain resources"));
+            h.assertTrue(player.getData(SaturnAttachments.RESOURCE_HOLDER) == resources, "resource setting retains the existing holder during in-place reset");
+            ReincarnationRequest request = ReincarnationRequest.atSpawn(player, Component.literal("resource recovery"));
+            player = interruptAndRecover(h, player, request, () -> config.reset.clearResources.setValue(true));
+            h.assertTrue(player.hasData(SaturnAttachments.RESOURCE_HOLDER), "recovery restores resources according to the archived choice");
+            h.assertTrue(!request.policy().clearResources(), "resource retention is frozen in the request");
+            resources = player.getData(SaturnAttachments.RESOURCE_HOLDER);
+            h.assertTrue(LifespanApi.rebirth(player, RebirthMode.RESET, Component.literal("clear resources")).getFailure().isEmpty(), "resource reset succeeds");
+            h.assertTrue(player.getData(SaturnAttachments.RESOURCE_HOLDER) != resources
+                    && player.getData(SaturnAttachments.RESOURCE_HOLDER).values().isEmpty(), "resources clear by default during reset");
+            player.getData(SaturnAttachments.RESOURCE_HOLDER);
+            player = ReincarnationService.get().reincarnate(player, ReincarnationRequest.atSpawn(player, Component.literal("default resources")));
+            h.assertTrue(player.getData(SaturnAttachments.RESOURCE_HOLDER).values().isEmpty(), "resources clear by default during full reincarnation");
+            h.assertTrue(ResetPolicy.DEFAULT.clearResources(), "default resource policy is clear");
+            h.succeed();
+        } finally {
+            config.deserialize(original);
+            tags(originalTags);
+            ServerPlayer online = h.getLevel().getServer().getPlayerList().getPlayer(player.getUUID());
+            if (online != null) LifecycleTests.remove(online);
+        }
     }
 
     private static void retention(GameTestHelper helper) {

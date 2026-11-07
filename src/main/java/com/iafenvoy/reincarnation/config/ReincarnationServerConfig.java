@@ -26,7 +26,7 @@ public final class ReincarnationServerConfig extends AutoInitConfigContainer {
     // Capture settings in the request so recovery never depends on later config changes.
     public ResetPolicy resetPolicy() {
         return new ResetPolicy(this.reset.resetScores.getValue(), this.reset.resetTeam.getValue(),
-                this.reset.resetUnknownModData.getValue(), this.reset.keepGameMode.getValue());
+                this.reset.resetUnknownModData.getValue(), this.reset.keepGameMode.getValue(), this.reset.clearResources.getValue());
     }
 
     public enum LifespanOutcome {NONE, DEATH, REINCARNATE}
@@ -45,6 +45,7 @@ public final class ReincarnationServerConfig extends AutoInitConfigContainer {
         public final IntegerEntry ticksPerYear = IntegerEntry.builder("config.reincarnation.server.lifespan.ticks_per_year", 24_000).key("ticks_per_year").tooltip("config.reincarnation.server.lifespan.ticks_per_year.tooltip").range(1, Integer.MAX_VALUE).build();
         public final BooleanEntry ageCreative = BooleanEntry.builder("config.reincarnation.server.lifespan.age_creative", false).key("age_creative").tooltip("config.reincarnation.server.lifespan.age_creative.tooltip").build();
         public final BooleanEntry ageSpectator = BooleanEntry.builder("config.reincarnation.server.lifespan.age_spectator", false).key("age_spectator").tooltip("config.reincarnation.server.lifespan.age_spectator.tooltip").build();
+        public final BooleanEntry killOnReset = BooleanEntry.builder("config.reincarnation.server.lifespan.kill_on_reset", false).key("kill_on_reset").tooltip("config.reincarnation.server.lifespan.kill_on_reset.tooltip").build();
 
         private Lifespan() {
             super("lifespan", "config.reincarnation.server.lifespan");
@@ -63,6 +64,8 @@ public final class ReincarnationServerConfig extends AutoInitConfigContainer {
     }
 
     public static final class Reset extends AutoInitConfigCategoryBase {
+        public final BooleanEntry clearResources = BooleanEntry.builder("config.reincarnation.server.reset.clear_resources", ResetPolicy.DEFAULT.clearResources())
+                .key("clear_resources").tooltip("config.reincarnation.server.reset.clear_resources.tooltip").build();
         public final BooleanEntry resetScores = BooleanEntry.builder("config.reincarnation.server.reset.scores", ResetPolicy.DEFAULT.resetScores())
                 .key("scores").tooltip("config.reincarnation.server.reset.scores.tooltip").build();
         public final BooleanEntry resetTeam = BooleanEntry.builder("config.reincarnation.server.reset.team", ResetPolicy.DEFAULT.resetTeam())

@@ -131,5 +131,9 @@
   "config.reincarnation.server.lifespan.player_death_mode.spectator": "转为旁观者",
   "config.reincarnation.server.lifespan.rebirth_mode.configured": "使用默认（完整换世）",
   "config.reincarnation.server.lifespan.rebirth_mode.new_life": "完整换世",
-  "config.reincarnation.server.lifespan.rebirth_mode.reset": "原地重置"
+  "config.reincarnation.server.lifespan.rebirth_mode.reset": "原地重置",
+  "config.reincarnation.server.reset.clear_resources": "清空资源数值",
+  "config.reincarnation.server.reset.clear_resources.tooltip": "默认清空 Saturn 数值资源。关闭时保留资源附件；保留标签可单独豁免，清空其他模组数据选项优先。",
+  "config.reincarnation.server.lifespan.kill_on_reset": "原地重置时击杀",
+  "config.reincarnation.server.lifespan.kill_on_reset.tooltip": "仅原地重置：重置完成后使用寿元伤害击杀实体。完整换世不会额外击杀。"
 }

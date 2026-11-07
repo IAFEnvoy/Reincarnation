@@ -15,7 +15,8 @@ public final class ReincarnationLifespanTypes {
     public static final DeferredRegister<FormulaVariable> VARIABLES = DeferredRegister.create(SaturnRegistries.FORMULA_VARIABLE, Reincarnation.MOD_ID);
 
     static {
-        ACTIONS.register("modify_lifespan", () -> ModifyLifespanAction.CODEC);
+        ACTIONS.register("add_lifespan", () -> AddLifespanAction.CODEC);
+        ACTIONS.register("remove_lifespan", () -> RemoveLifespanAction.CODEC);
         ACTIONS.register("reincarnate", () -> ReincarnateAction.CODEC);
         ACTIONS.register("unlimited_lifespan", () -> UnlimitedLifespanAction.CODEC);
         CONDITIONS.register("lifespan", () -> LifespanCondition.CODEC);

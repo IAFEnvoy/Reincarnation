@@ -26,6 +26,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.Connection;
+import net.minecraft.network.ConnectionProtocol;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.network.protocol.PacketFlow;
@@ -70,6 +71,11 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.network.payload.ConfigFilePayload;
+import net.neoforged.neoforge.network.registration.ChannelAttributes;
+import net.neoforged.neoforge.network.registration.NetworkChannel;
+import net.neoforged.neoforge.network.registration.NetworkPayloadSetup;
+import net.neoforged.neoforge.network.registration.NetworkRegistry;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 import org.jspecify.annotations.NonNull;
@@ -162,6 +168,11 @@ final class LifecycleTests {
         data.ifPresent(tag -> player.load(TagValueInput.create(ProblemReporter.DISCARDING, server.registryAccess(), tag)));
         Connection connection = new Connection(PacketFlow.SERVERBOUND);
         new EmbeddedChannel(connection);
+        NetworkRegistry.configureMockConnection(connection);
+        // Mock clients support mod payloads but never enter the config handshake.
+        HashMap<Identifier, NetworkChannel> channels = new HashMap<>(ChannelAttributes.getPayloadSetup(connection).getChannels(ConnectionProtocol.PLAY));
+        channels.remove(ConfigFilePayload.TYPE.id());
+        ChannelAttributes.setPayloadSetup(connection, new NetworkPayloadSetup(Map.of(ConnectionProtocol.PLAY, channels)));
         helper.getLevel().getServer().getPlayerList().placeNewPlayer(connection, player, cookie);
         return player;
     }

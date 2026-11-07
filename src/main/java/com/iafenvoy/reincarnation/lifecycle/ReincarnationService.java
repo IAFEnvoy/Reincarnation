@@ -18,6 +18,8 @@ import com.iafenvoy.reincarnation.storage.Generations;
 import com.iafenvoy.reincarnation.storage.LifeStore;
 import com.iafenvoy.reincarnation.view.ReincarnationViews;
 import com.iafenvoy.saturn.data.information.PlayerViewSnapshot;
+import com.iafenvoy.saturn.runtime.ability.AbilityGrantService;
+import com.iafenvoy.saturn.runtime.ability.PassiveAttributeService;
 import com.iafenvoy.saturn.util.FileAccess;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.Registries;
@@ -351,6 +353,8 @@ public final class ReincarnationService {
         if (recovering) PlayerInheritance.apply(fresh, tx, archive);
         Handlers.apply(fresh, tx, archive.getCompound("handlers").orElseThrow(), recovering);
         NeoForge.EVENT_BUS.post(new ReincarnationEvent.Reset(fresh, tx.context(recovering)));
+        AbilityGrantService.recalculate(fresh);
+        PassiveAttributeService.reconcile(fresh);
         ReincarnationRequest request = tx.request();
         ServerLevel level = this.server.getLevel(request.dimension());
         if (level == null) throw new ReincarnationException("error.reincarnation.dimension");

@@ -36,7 +36,7 @@ public abstract class LifeSpanRebirthEvent extends EntityEvent {
     }
 
     /**
-     * Apply addon state only for RESET; full player transitions use ReincarnationHandler instead.
+     * Fired after generic attachment cleanup in RESET mode, before rebuilding grants and lifespan.
      */
     public static final class Reset extends LifeSpanRebirthEvent {
         public Reset(LivingEntity entity, LifespanAttachment ledger) {

@@ -32,13 +32,11 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.network.ConnectionProtocol;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.LevelBasedPermissionSet;
@@ -47,9 +45,6 @@ import net.minecraft.server.players.NameAndId;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.network.registration.ChannelAttributes;
-import net.neoforged.neoforge.network.registration.NetworkChannel;
-import net.neoforged.neoforge.network.registration.NetworkPayloadSetup;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -226,10 +221,6 @@ final class PlayerViewTests {
         ServerPlayer player = LifecycleTests.connect(helper);
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), player.registryAccess());
         try {
-            // Embedded test players skip the login negotiation performed by a real modded client.
-            Identifier payloadId = OpenScreenS2CPayload.TYPE.id();
-            ChannelAttributes.setPayloadSetup(player.connection.getConnection(), new NetworkPayloadSetup(Map.of(
-                    ConnectionProtocol.PLAY, Map.of(payloadId, new NetworkChannel(payloadId, "1")))));
             CommandSourceStack source = player.createCommandSourceStack().withPermission(PermissionSet.NO_PERMISSIONS);
             CommandDispatcher<CommandSourceStack> dispatcher = helper.getLevel().getServer().getCommands().getDispatcher();
             try {
@@ -309,9 +300,6 @@ final class PlayerViewTests {
         ReincarnationService service = ReincarnationService.get();
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), player.registryAccess());
         try {
-            Identifier payloadId = LifeViewRefreshS2CPayload.TYPE.id();
-            ChannelAttributes.setPayloadSetup(player.connection.getConnection(), new NetworkPayloadSetup(Map.of(
-                    ConnectionProtocol.PLAY, Map.of(payloadId, new NetworkChannel(payloadId, "1")))));
             EmbeddedChannel channel = (EmbeddedChannel) player.connection.getConnection().channel();
             SoulRecord before = service.current(player.getUUID()).orElseThrow();
             player.setHealth(7);

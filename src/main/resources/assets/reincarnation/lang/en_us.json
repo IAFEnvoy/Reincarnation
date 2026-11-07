@@ -131,5 +131,9 @@
   "config.reincarnation.server.lifespan.player_death_mode.spectator": "Spectator",
   "config.reincarnation.server.lifespan.rebirth_mode.configured": "Default (new life)",
   "config.reincarnation.server.lifespan.rebirth_mode.new_life": "New life",
-  "config.reincarnation.server.lifespan.rebirth_mode.reset": "Reset in place"
+  "config.reincarnation.server.lifespan.rebirth_mode.reset": "Reset in place",
+  "config.reincarnation.server.reset.clear_resources": "Clear resource values",
+  "config.reincarnation.server.reset.clear_resources.tooltip": "Clear Saturn resources by default. Disable to retain their attachment. The retention tag can also preserve it; resetting other mod data takes precedence.",
+  "config.reincarnation.server.lifespan.kill_on_reset": "Kill on in-place reset",
+  "config.reincarnation.server.lifespan.kill_on_reset.tooltip": "In-place reset only: kill the entity with lifespan damage after resetting it. A full new life does not perform an extra kill."
 }
