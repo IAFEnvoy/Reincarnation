@@ -659,3 +659,21 @@ specific requirements.
 if any, to sign a "copyright disclaimer" for the program, if necessary.
 For more information on this, and how to apply and follow the GNU AGPL, see
 <https://www.gnu.org/licenses/>.
+
+Additional Terms: Minecraft / Loader Linking Exception
+
+As a special exception, the copyright holders of this program give you permission
+to link this program independently with:
+- Minecraft Java Edition;
+- NeoForge, Forge, Fabric Loader and their associated API libraries;
+- the standard LWJGL libraries distributed as part of the Minecraft runtime;
+
+and to convey the resulting combined work, provided that you comply with all other
+terms of the GNU Affero General Public License, and that you do not distribute
+Minecraft, the loader, or LWJGL together with your mod.
+
+This exception does not apply to any other mod, third-party library, or separate
+software component. If you modify this program, you may carry forward this exception
+in your modified version, but you are not required to do so.
+
+This exception does not alter or waive any obligations under the Minecraft EULA.
